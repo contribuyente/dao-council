@@ -1,23 +1,7 @@
 const DECENTRALAND_COLLECTIONS_SUBGRAPH =
   "https://subgraph.decentraland.org/collections-matic-mainnet";
 
-export default {
-  async fetch(request) {
-    const url = new URL(request.url);
-
-    if (url.pathname === "/api/graphql") {
-      return proxyGraphql(request);
-    }
-
-    if (url.pathname.startsWith("/api/")) {
-      return Response.json({ error: "Not found" }, { status: 404 });
-    }
-
-    return new Response(null, { status: 404 });
-  },
-} satisfies ExportedHandler;
-
-async function proxyGraphql(request: Request): Promise<Response> {
+export const onRequest: PagesFunction = async ({ request }) => {
   if (request.method === "OPTIONS") {
     return new Response(null, {
       status: 204,
@@ -69,4 +53,4 @@ async function proxyGraphql(request: Request): Promise<Response> {
     statusText: upstreamResponse.statusText,
     headers,
   });
-}
+};

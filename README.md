@@ -16,14 +16,14 @@ A web application for calculating and reporting curator fees in the Decentraland
 ## Tech Stack
 
 - **Frontend**: React + TypeScript + Vite
-- **Cloudflare Runtime**: Cloudflare Worker with static assets via the Cloudflare Vite plugin
+- **Cloudflare Runtime**: Cloudflare Pages with Pages Functions
 - **Styling**: CSS with dark theme
-- **Data Source**: Decentraland GraphQL subgraph, proxied through the app's Worker API
+- **Data Source**: Decentraland GraphQL subgraph, proxied through the app's Pages Function API
 - **Blockchain**: Polygon network (MANA token)
 - **Libraries**:
   - `date-fns` for date manipulation
   - `viem` for wei conversions and blockchain interaction
-  - `wrangler` and `@cloudflare/vite-plugin` for local Cloudflare development and deployment
+  - `wrangler` for local Cloudflare Pages development and deployment
   - Native fetch for GraphQL queries
 
 ## Getting Started
@@ -49,7 +49,7 @@ cd dao-council
 npm install
 ```
 
-3. Start the local Cloudflare/Vite development server:
+3. Build and start the local Cloudflare Pages development server:
 
 ```bash
 npm run dev
@@ -57,7 +57,7 @@ npm run dev
 
 4. Open [http://localhost:5173](http://localhost:5173) in your browser
 
-`npm run dev` runs the React app and the Worker API together. The browser calls the same-origin `/api/graphql` endpoint, and the Worker forwards the request to Decentraland's subgraph. This replaces the old `corsproxy.io` workaround.
+`npm run dev` builds the React app and runs it with the Pages Function API locally. The browser calls the same-origin `/api/graphql` endpoint, and the Pages Function forwards the request to Decentraland's subgraph. This replaces the old `corsproxy.io` workaround.
 
 ### Building for Production
 
@@ -65,10 +65,7 @@ npm run dev
 npm run build
 ```
 
-The built files will be in the `dist` directory:
-
-- `dist/client` contains the browser assets
-- `dist/curator_fees` contains the Worker bundle and generated Wrangler config
+The built browser assets will be in the `dist` directory. Pages Functions are defined in the root `functions` directory.
 
 ### Previewing Production Locally
 
@@ -76,7 +73,7 @@ The built files will be in the `dist` directory:
 npm run preview
 ```
 
-This previews the built app locally in the Cloudflare Workers runtime.
+This previews the built app locally with the Cloudflare Pages runtime.
 
 ### Deploying to Cloudflare
 
@@ -92,13 +89,23 @@ Then deploy:
 npm run deploy
 ```
 
-This repository now deploys to Cloudflare as a Worker with static assets and an API route. Vercel is no longer required.
+This repository now deploys to Cloudflare Pages with a Pages Function API route. Vercel is no longer required.
+
+For Git-based Cloudflare deployments, create a Pages project connected to this repository with:
+
+- **Project name**: `dao-council`
+- **Production branch**: `main`
+- **Build command**: `npm run build`
+- **Build output directory**: `dist`
+- **Root directory**: `/`
+
+The production URL will be `https://dao-council.pages.dev`.
 
 ## How It Works
 
 ### Data Flow
 
-1. **GraphQL Query**: The frontend requests `/api/graphql`; the Cloudflare Worker forwards the query to Decentraland's subgraph endpoint
+1. **GraphQL Query**: The frontend requests `/api/graphql`; the Cloudflare Pages Function forwards the query to Decentraland's subgraph endpoint
 2. **Transaction Log Extraction**: For each unique transaction, fetches receipt and extracts item IDs from curation events
 3. **Item Matching**: Matches item IDs with collection items to get names and metadata
 4. **Duplicate Detection**: Tracks items that have already been curated to identify duplicates
