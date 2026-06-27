@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { startOfMonth, endOfMonth } from 'date-fns'
 import { DateRangePicker } from './components/DateRangePicker'
 import { CuratorFeesCalculator } from './components/CuratorFeesCalculator'
@@ -25,21 +25,21 @@ function App() {
   const [curatorFees, setCuratorFees] = useState<CuratorFeesSummary[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleDateRangeChange = (newDateRange: DateRange) => {
+  const handleDateRangeChange = useCallback((newDateRange: DateRange) => {
     setDateRange(newDateRange);
-  };
+  }, []);
 
-  const handleRangeTypeChange = (newRangeType: RangeType) => {
+  const handleRangeTypeChange = useCallback((newRangeType: RangeType) => {
     setRangeType(newRangeType);
-  };
+  }, []);
 
-  const handleFeesCalculated = (fees: CuratorFeesSummary[]) => {
+  const handleFeesCalculated = useCallback((fees: CuratorFeesSummary[]) => {
     setCuratorFees(fees);
-  };
+  }, []);
 
-  const handleLoadingChange = (loading: boolean) => {
+  const handleLoadingChange = useCallback((loading: boolean) => {
     setIsLoading(loading);
-  };
+  }, []);
 
   return (
     <div className="app">

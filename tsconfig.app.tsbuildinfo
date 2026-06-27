@@ -1,1 +1,1 @@
-{"root":["./src/app.tsx","./src/curatordata.ts","./src/graphqlclient.ts","./src/main.tsx","./src/types.ts","./src/vite-env.d.ts","./src/components/curatorfeescalculator.tsx","./src/components/curatorfeesreport.tsx","./src/components/daterangepicker.tsx"],"version":"5.9.3"}
+{"root":["./src/app.tsx","./src/curatordata.ts","./src/graphqlclient.ts","./src/main.tsx","./src/transactionlogs.ts","./src/types.ts","./src/vite-env.d.ts","./src/components/curatorfeescalculator.tsx","./src/components/curatorfeesreport.tsx","./src/components/daterangepicker.tsx"],"version":"6.0.3"}

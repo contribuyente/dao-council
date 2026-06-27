@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { DateRange, CuratorFeesSummary, Curation, CurationDetail } from "../types";
 import { fetchAllCurations } from "../graphqlClient";
 import { curatorData } from "../curatorData";
@@ -18,24 +18,24 @@ export function CuratorFeesCalculator({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const convertBigNumberToEther = (bigNumberString: string): number => {
+  const convertBigNumberToEther = useCallback((bigNumberString: string): number => {
     // Convert BigNumber string to regular number by dividing by 10^18
     const bigNumber = BigInt(bigNumberString);
     const divisor = BigInt("1000000000000000000"); // 10^18
     const result = Number(bigNumber) / Number(divisor);
     return result;
-  };
+  }, []);
 
 
-  const processCurations = async (curations: Curation[]): Promise<CuratorFeesSummary[]> => {
+  const processCurations = useCallback(async (curations: Curation[]): Promise<CuratorFeesSummary[]> => {
     const curatorFees = new Map<string, CuratorFeesSummary>();
 
-    // Sort by timestamp and filter by collection.createdAt like legacy script
+    // Sort by timestamp and apply the historical collection creation cutoff.
     const sortedCurations = curations
       .sort((a, b) => +a.timestamp - +b.timestamp)
       .filter((curation) => {
         const createdAt = parseInt(curation.collection.createdAt);
-        return createdAt > 1658153853; // Same filter as legacy script
+        return createdAt > 1658153853;
       });
 
     // Group curations by txHash to fetch item IDs efficiently
@@ -267,7 +267,7 @@ export function CuratorFeesCalculator({
     console.log('================================================\n');
 
     return finalSummaries;
-  };
+  }, [convertBigNumberToEther]);
 
   useEffect(() => {
     const fetchAndCalculateFees = async () => {
@@ -295,7 +295,7 @@ export function CuratorFeesCalculator({
     };
 
     fetchAndCalculateFees();
-  }, [dateRange]);
+  }, [dateRange, onFeesCalculated, onLoadingChange, processCurations]);
 
   if (loading) {
     return (

@@ -16,20 +16,23 @@ A web application for calculating and reporting curator fees in the Decentraland
 ## Tech Stack
 
 - **Frontend**: React + TypeScript + Vite
+- **Cloudflare Runtime**: Cloudflare Worker with static assets via the Cloudflare Vite plugin
 - **Styling**: CSS with dark theme
-- **Data Source**: Decentraland GraphQL subgraph
+- **Data Source**: Decentraland GraphQL subgraph, proxied through the app's Worker API
 - **Blockchain**: Polygon network (MANA token)
 - **Libraries**:
   - `date-fns` for date manipulation
   - `viem` for wei conversions and blockchain interaction
+  - `wrangler` and `@cloudflare/vite-plugin` for local Cloudflare development and deployment
   - Native fetch for GraphQL queries
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js (v16 or higher)
-- npm or yarn
+- Node.js v20.19 or higher
+- npm
+- A Cloudflare account for deployment
 
 ### Installation
 
@@ -37,7 +40,7 @@ A web application for calculating and reporting curator fees in the Decentraland
 
 ```bash
 git clone <repository-url>
-cd curators-fees
+cd dao-council
 ```
 
 2. Install dependencies:
@@ -46,7 +49,7 @@ cd curators-fees
 npm install
 ```
 
-3. Start the development server:
+3. Start the local Cloudflare/Vite development server:
 
 ```bash
 npm run dev
@@ -54,19 +57,48 @@ npm run dev
 
 4. Open [http://localhost:5173](http://localhost:5173) in your browser
 
+`npm run dev` runs the React app and the Worker API together. The browser calls the same-origin `/api/graphql` endpoint, and the Worker forwards the request to Decentraland's subgraph. This replaces the old `corsproxy.io` workaround.
+
 ### Building for Production
 
 ```bash
 npm run build
 ```
 
-The built files will be in the `dist` directory.
+The built files will be in the `dist` directory:
+
+- `dist/client` contains the browser assets
+- `dist/curator_fees` contains the Worker bundle and generated Wrangler config
+
+### Previewing Production Locally
+
+```bash
+npm run preview
+```
+
+This previews the built app locally in the Cloudflare Workers runtime.
+
+### Deploying to Cloudflare
+
+Authenticate Wrangler once if needed:
+
+```bash
+npm exec wrangler login
+```
+
+Then deploy:
+
+```bash
+npm run deploy
+```
+
+This repository now deploys to Cloudflare as a Worker with static assets and an API route. Vercel is no longer required.
 
 ## How It Works
 
 ### Data Flow
 
-1. **GraphQL Query**: Fetches curation data from Decentraland's subgraph endpoint
+1. **GraphQL Query**: The frontend requests `/api/graphql`; the Cloudflare Worker forwards the query to Decentraland's subgraph endpoint
 2. **Transaction Log Extraction**: For each unique transaction, fetches receipt and extracts item IDs from curation events
 3. **Item Matching**: Matches item IDs with collection items to get names and metadata
 4. **Duplicate Detection**: Tracks items that have already been curated to identify duplicates
@@ -99,7 +131,8 @@ This workaround ensures that:
 
 ### Data Sources
 
-- **GraphQL Endpoint**: `https://subgraph.decentraland.org/collections-matic-mainnet`
+- **App GraphQL API**: `/api/graphql`
+- **Upstream GraphQL Endpoint**: `https://subgraph.decentraland.org/collections-matic-mainnet`
 - **Filter**: Only collections created after timestamp `1658153853`
 - **Blockchain**: Polygon network transactions
 - **Token**: MANA (contract: `0x0F5D2fB29fb7d3CFeE444a200298f468908cC942`)

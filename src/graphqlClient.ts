@@ -1,7 +1,6 @@
-import { CurationsResponse, DateRange } from "./types";
+import { Curation, CurationsResponse, DateRange } from "./types";
 
-const GRAPHQL_ENDPOINT =
-  "https://corsproxy.io/?url=https://subgraph.decentraland.org/collections-matic-mainnet";
+const GRAPHQL_ENDPOINT = "/api/graphql";
 
 export async function fetchCurations(
   dateRange: DateRange,
@@ -10,7 +9,48 @@ export async function fetchCurations(
   const fromTimestamp = Math.floor(dateRange.from.getTime() / 1000);
   const toTimestamp = Math.floor(dateRange.to.getTime() / 1000);
 
-  const body = `{\"query\":\"{\\n    curations(orderBy: timestamp, orderDirection: asc, skip: ${skip}, first: 1000, where: { timestamp_gte: ${fromTimestamp}, timestamp_lte: ${toTimestamp} } ) {\\n      timestamp\\n      txHash\\n      curator {\\n        id\\n      }\\n      collection {\\n        id\\n        createdAt\\n        itemsCount\\n        name\\n        items {\\n          blockchainId\\n          creationFee\\n          metadata {\\n            wearable {\\n              name\\n            }\\n            emote {\\n              name\\n            }\\n          }\\n        }\\n        isApproved\\n      }\\n    }\\n}\",\"variables\":null}`;
+  const body = JSON.stringify({
+    query: `
+      {
+        curations(
+          orderBy: timestamp,
+          orderDirection: asc,
+          skip: ${skip},
+          first: 1000,
+          where: {
+            timestamp_gte: ${fromTimestamp},
+            timestamp_lte: ${toTimestamp}
+          }
+        ) {
+          timestamp
+          txHash
+          curator {
+            id
+          }
+          collection {
+            id
+            createdAt
+            itemsCount
+            name
+            items {
+              blockchainId
+              creationFee
+              metadata {
+                wearable {
+                  name
+                }
+                emote {
+                  name
+                }
+              }
+            }
+            isApproved
+          }
+        }
+      }
+    `,
+    variables: null,
+  });
 
   const response = await fetch(GRAPHQL_ENDPOINT, {
     method: "POST",
@@ -30,7 +70,7 @@ export async function fetchCurations(
 export async function fetchAllCurations(
   dateRange: DateRange
 ): Promise<CurationsResponse> {
-  let allCurations: any[] = [];
+  let allCurations: Curation[] = [];
   let skip = 0;
   const batchSize = 1000;
 

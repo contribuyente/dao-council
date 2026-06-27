@@ -168,7 +168,7 @@ export async function extractItemIdsFromTxs(
         }
         
         return { txHash, itemMap };
-      } catch (error) {
+      } catch {
         transactionsWithErrors++;
         return { txHash, itemMap: new Map<string, string[]>() };
       }
@@ -196,4 +196,3 @@ export async function extractItemIdsFromTxs(
   
   return result;
 }
-
