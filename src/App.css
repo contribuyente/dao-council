@@ -11,6 +11,9 @@
   --card-on-modal: #67637033;
   --text: #ffffff;
   --secondary-text: #676370;
+  --divider: #67637033;
+  --navbar-item-text-enabled: #cfcdd4;
+  --navbar-margin-bottom: 44px;
 }
 
 *,
@@ -48,12 +51,63 @@ body {
   min-height: 100vh;
 }
 
+.app-shell {
+  width: 100%;
+  min-height: 100vh;
+  background: var(--background);
+}
+
+.app-header {
+  width: 100%;
+  border-bottom: 1px solid var(--secondary-on-modal);
+  background: var(--background);
+}
+
+.app-header-content {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1.5rem 2rem 0.75rem;
+}
+
+.app-title {
+  margin: 0;
+  color: var(--text);
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.app-tabs.dcl.tabs {
+  height: 56px;
+  margin: 0;
+  border-bottom: 0;
+}
+
+.app-tabs.dcl.tabs .ui.container {
+  width: 100%;
+  max-width: 1200px;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  padding: 0 2rem;
+}
+
+.app-tabs.dcl.tabs .dcl.tab {
+  margin-right: 0;
+  padding: 15px 0;
+  color: var(--navbar-item-text-enabled);
+}
+
+.app-tabs.dcl.tabs .dcl.tab.active,
+.app-tabs.dcl.tabs .dcl.tab:hover {
+  color: var(--text);
+}
+
 .app {
   width: 100%;
   max-width: 1200px;
-  margin: 4rem auto 0;
+  margin: 0 auto;
   padding: 2rem 2rem 4rem;
-  min-height: calc(100vh - 4rem);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -62,18 +116,58 @@ body {
 }
 
 @media (max-width: 768px) {
+  .app-header-content {
+    padding: 1.25rem 1rem 0.5rem;
+  }
+
+  .app-title {
+    font-size: 1.5rem;
+  }
+
+  .app-tabs.dcl.tabs,
+  .app-tabs.dcl.tabs.fullscreen {
+    height: 48px;
+    margin: 0;
+    padding: 0 1rem;
+  }
+
+  .app-tabs.dcl.tabs .dcl.tab {
+    display: inline-block;
+    margin: 0;
+    padding: 11px 0;
+    border-bottom: 0;
+    font-size: 15px;
+  }
+
+  .app-tabs.dcl.tabs .dcl.tab.active {
+    border-left: 0;
+  }
+
+  .app-tabs.dcl.tabs .dcl.tab .active-bar {
+    display: block;
+    bottom: -1px;
+  }
+
   .app {
-    margin: 2rem auto 0;
     padding: 1rem 1rem 3rem;
-    min-height: calc(100vh - 2rem);
   }
 }
 
 @media (max-width: 480px) {
+  .app-header-content {
+    padding: 1rem 0.75rem 0.5rem;
+  }
+
+  .app-title {
+    font-size: 1.375rem;
+  }
+
+  .app-tabs.dcl.tabs {
+    padding: 0 0.75rem;
+  }
+
   .app {
-    margin: 1rem auto 0;
     padding: 0.5rem 0.5rem 2rem;
-    min-height: calc(100vh - 1rem);
   }
 }
 

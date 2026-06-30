@@ -1,6 +1,6 @@
-# Curator Fees Calculator
+# DCL DAO Council
 
-A web application for calculating and reporting curator fees in the Decentraland ecosystem. This tool helps track curator activities and generate payment reports for the curation program.
+A web application for Decentraland DAO Council workflows. The current Curators tab calculates and reports curator fees, tracks curator activities, and generates Safe payment transactions for the curation program.
 
 ## Features
 
@@ -17,13 +17,14 @@ A web application for calculating and reporting curator fees in the Decentraland
 
 - **Frontend**: React + TypeScript + Vite
 - **Cloudflare Runtime**: Cloudflare Pages with Pages Functions
-- **Styling**: CSS with dark theme
+- **Styling**: CSS with dark theme and `decentraland-ui` tabs
 - **Data Source**: Decentraland GraphQL subgraph, proxied through the app's Pages Function API
 - **Blockchain**: Polygon network (MANA token)
 - **Libraries**:
   - `date-fns` for date manipulation
   - `viem` for wei conversions and blockchain interaction
   - `@safe-global/safe-apps-sdk` for Safe transaction creation
+  - `decentraland-ui` for navigation tabs
   - `wrangler` for local Cloudflare Pages development and deployment
   - Native fetch for GraphQL queries
 
@@ -159,6 +160,10 @@ The application includes a mapping of curator addresses to names and payment add
 
 ## Usage
 
+The app currently has one top-level tab:
+
+- **Curators**: Shows the curator fees report workflow.
+
 ### Generating Reports
 
 1. **Select Date Range**: Use the month picker for quick selection or custom from/to dates
@@ -173,7 +178,7 @@ To create the multisig transaction:
 1. Open the Safe web app for the DAO Council multisig
 2. Add `https://dao-council.pages.dev` as a custom Safe App if it is not already listed
 3. Open the app inside Safe Apps
-4. Generate the report and click "Create Safe Transaction"
+4. Generate the report and click "Create Transaction"
 
 The button creates a Safe transaction batch with one MANA ERC20 `transfer` call per curator payment address. Safe will only allow transaction creation when the app is opened in Safe by an account with the required permissions.
 

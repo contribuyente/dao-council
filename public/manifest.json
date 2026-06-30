@@ -1,7 +1,7 @@
 {
-  "name": "DAO Council Curator Fees",
-  "short_name": "DAO Council",
-  "description": "Calculate Decentraland DAO curator fees and create Safe payment transactions.",
+  "name": "DCL DAO Council",
+  "short_name": "DCL DAO",
+  "description": "DAO Council tools for Decentraland curator fee reports and Safe payment transactions.",
   "icons": [
     {
       "src": "/favicon.ico",

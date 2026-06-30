@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react'
 import { startOfMonth, endOfMonth } from 'date-fns'
+import { Tabs } from 'decentraland-ui/dist/components/Tabs/Tabs'
 import { DateRangePicker } from './components/DateRangePicker'
 import { CuratorFeesCalculator } from './components/CuratorFeesCalculator'
 import { CuratorFeesReport } from './components/CuratorFeesReport'
@@ -42,25 +43,38 @@ function App() {
   }, []);
 
   return (
-    <div className="app">
-      <DateRangePicker
-        dateRange={dateRange}
-        onDateRangeChange={handleDateRangeChange}
-        rangeType={rangeType}
-        onRangeTypeChange={handleRangeTypeChange}
-      />
-      
-      <CuratorFeesCalculator
-        dateRange={dateRange}
-        onFeesCalculated={handleFeesCalculated}
-        onLoadingChange={handleLoadingChange}
-      />
-      
-      <CuratorFeesReport
-        fees={curatorFees}
-        dateRange={dateRange}
-        isLoading={isLoading}
-      />
+    <div className="app-shell">
+      <header className="app-header">
+        <div className="app-header-content">
+          <h1 className="app-title">DCL DAO Council</h1>
+        </div>
+        <nav className="app-navigation" aria-label="DCL DAO Council sections">
+          <Tabs className="app-tabs">
+            <Tabs.Tab active>Curators</Tabs.Tab>
+          </Tabs>
+        </nav>
+      </header>
+
+      <main className="app">
+        <DateRangePicker
+          dateRange={dateRange}
+          onDateRangeChange={handleDateRangeChange}
+          rangeType={rangeType}
+          onRangeTypeChange={handleRangeTypeChange}
+        />
+        
+        <CuratorFeesCalculator
+          dateRange={dateRange}
+          onFeesCalculated={handleFeesCalculated}
+          onLoadingChange={handleLoadingChange}
+        />
+        
+        <CuratorFeesReport
+          fees={curatorFees}
+          dateRange={dateRange}
+          isLoading={isLoading}
+        />
+      </main>
     </div>
   )
 }
