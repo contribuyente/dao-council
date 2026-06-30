@@ -1,31 +1,18 @@
-type JsonRpcRequest = {
-  jsonrpc?: string;
-  id?: string | number | null;
-  method?: string;
-  params?: unknown[];
-};
-
-type JsonRpcResponse = {
-  jsonrpc?: string;
-  id?: string | number | null;
-  result?: unknown;
-  error?: {
-    code?: number;
-    message?: string;
-  };
-};
-
-const POLYGON_RPC_URLS = [
-  'https://polygon-bor-rpc.publicnode.com',
-  'https://polygon.llamarpc.com',
-];
+import {
+  fetchPolygonRpc,
+  type JsonRpcRequest,
+  type PolygonRpcEnv,
+} from '../_lib/polygonRpc';
 
 const ALLOWED_METHODS = new Set([
   'eth_chainId',
   'eth_getTransactionReceipt',
 ]);
 
-export const onRequestPost: PagesFunction = async ({ request }) => {
+export const onRequestPost: PagesFunction<PolygonRpcEnv> = async ({
+  request,
+  env,
+}) => {
   const contentType = request.headers.get('content-type') ?? '';
   if (!contentType.toLowerCase().includes('application/json')) {
     return Response.json(
@@ -48,44 +35,19 @@ export const onRequestPost: PagesFunction = async ({ request }) => {
     return Response.json({ error: 'Unsupported JSON-RPC method.' }, { status: 400 });
   }
 
-  let lastError: JsonRpcResponse | null = null;
-
-  for (const rpcUrl of POLYGON_RPC_URLS) {
-    try {
-      const upstreamResponse = await fetch(rpcUrl, {
-        method: 'POST',
-        headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-        },
-        body,
-      });
-
-      const text = await upstreamResponse.text();
-      const responsePayload = JSON.parse(text) as JsonRpcResponse | JsonRpcResponse[];
-
-      if (upstreamResponse.ok && !hasJsonRpcError(responsePayload)) {
-        return new Response(text, {
-          status: 200,
-          headers: {
-            'Content-Type': 'application/json',
-            'Cache-Control': 's-maxage=86400, stale-while-revalidate=604800',
-          },
-        });
-      }
-
-      lastError = Array.isArray(responsePayload) ? responsePayload[0] ?? null : responsePayload;
-    } catch {
-      // Try the next public RPC endpoint.
-    }
+  try {
+    return await fetchPolygonRpc(body, env);
+  } catch (error) {
+    return Response.json(
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Could not fetch Polygon transaction receipt.',
+      },
+      { status: 502 }
+    );
   }
-
-  return Response.json(
-    {
-      error: lastError?.error?.message ?? 'Could not fetch Polygon transaction receipt.',
-    },
-    { status: 502 }
-  );
 };
 
 export const onRequestOptions: PagesFunction = async () => {
@@ -115,9 +77,4 @@ function isAllowedPayload(payload: JsonRpcRequest | JsonRpcRequest[]) {
       return true;
     })
   );
-}
-
-function hasJsonRpcError(payload: JsonRpcResponse | JsonRpcResponse[]) {
-  const responses = Array.isArray(payload) ? payload : [payload];
-  return responses.some((response) => Boolean(response.error));
 }
