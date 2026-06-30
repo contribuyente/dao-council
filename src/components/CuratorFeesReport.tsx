@@ -1,7 +1,25 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { format } from 'date-fns';
-import { parseEther } from 'viem';
+import SafeAppsSDK, { type BaseTransaction, type SafeInfoExtended } from '@safe-global/safe-apps-sdk';
+import { encodeFunctionData, isAddress, parseEther, type Address } from 'viem';
 import { CuratorFeesSummary, DateRange } from '../types';
+
+const MANA_TOKEN_ADDRESS = '0x0F5D2fB29fb7d3CFeE444a200298f468908cC942';
+const SAFE_APP_TIMEOUT_MS = 2000;
+const ERC20_TRANSFER_ABI = [
+  {
+    type: 'function',
+    name: 'transfer',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'to', type: 'address' },
+      { name: 'amount', type: 'uint256' },
+    ],
+    outputs: [{ name: '', type: 'bool' }],
+  },
+] as const;
+
+type SafeAppStatus = 'checking' | 'connected' | 'unavailable';
 
 interface CuratorFeesReportProps {
   fees: CuratorFeesSummary[];
@@ -11,9 +29,45 @@ interface CuratorFeesReportProps {
 
 export function CuratorFeesReport({ fees, isLoading }: CuratorFeesReportProps) {
   const [expandedCurator, setExpandedCurator] = useState<string | null>(null);
+  const [safeInfo, setSafeInfo] = useState<SafeInfoExtended | null>(null);
+  const [safeAppStatus, setSafeAppStatus] = useState<SafeAppStatus>('checking');
+  const [isCreatingSafeTx, setIsCreatingSafeTx] = useState(false);
+  const [safeTxHash, setSafeTxHash] = useState<string | null>(null);
+  const [safeTxError, setSafeTxError] = useState<string | null>(null);
   
   const totalFees = fees.reduce((sum, curator) => sum + curator.totalFees, 0);
   const totalCurations = fees.reduce((sum, curator) => sum + curator.curationCount, 0);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadSafeInfo = async () => {
+      if (!isEmbedded()) {
+        setSafeAppStatus('unavailable');
+        return;
+      }
+
+      try {
+        const sdk = new SafeAppsSDK();
+        const info = await withTimeout(sdk.safe.getInfo(), SAFE_APP_TIMEOUT_MS);
+
+        if (isMounted) {
+          setSafeInfo(info);
+          setSafeAppStatus('connected');
+        }
+      } catch {
+        if (isMounted) {
+          setSafeAppStatus('unavailable');
+        }
+      }
+    };
+
+    loadSafeInfo();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const formatMANA = (amount: number) => {
     return `${Number(amount.toFixed(2)).toLocaleString()} MANA`;
@@ -42,22 +96,39 @@ export function CuratorFeesReport({ fees, isLoading }: CuratorFeesReportProps) {
     return format(date, 'MMM dd, yyyy HH:mm');
   };
 
-  const copyToClipboard = () => {
-    const csvText = generateMultisigCSV();
-    navigator.clipboard.writeText(csvText);
-    alert('Multisig CSV copied to clipboard!');
-  };
+  const createSafeTransaction = async () => {
+    setSafeTxHash(null);
+    setSafeTxError(null);
 
-  const generateMultisigCSV = () => {
-    let csv = 'token_type,token_address,receiver,amount\n';
-    
-    fees.forEach(curator => {
-      // Convert MANA amount to wei using viem's parseEther
-      const totalAmountWei = parseEther(curator.totalFees.toString()).toString();
-      csv += `erc20,0x0F5D2fB29fb7d3CFeE444a200298f468908cC942,${curator.paymentAddress},${totalAmountWei}\n`;
-    });
-    
-    return csv;
+    if (!isEmbedded()) {
+      setSafeTxError('Open this app from Safe Apps to create a multisig transaction.');
+      return;
+    }
+
+    setIsCreatingSafeTx(true);
+
+    try {
+      const sdk = new SafeAppsSDK();
+      const currentSafeInfo =
+        safeInfo ?? (await withTimeout(sdk.safe.getInfo(), SAFE_APP_TIMEOUT_MS));
+
+      if (currentSafeInfo.isReadOnly) {
+        throw new Error('Connect to Safe as an owner to create this transaction.');
+      }
+
+      const txs = buildSafeTransactions(fees);
+      const response = await sdk.txs.send({ txs });
+
+      setSafeInfo(currentSafeInfo);
+      setSafeAppStatus('connected');
+      setSafeTxHash(response.safeTxHash);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Failed to create Safe transaction.';
+      setSafeTxError(message);
+    } finally {
+      setIsCreatingSafeTx(false);
+    }
   };
 
   if (isLoading) {
@@ -94,9 +165,33 @@ export function CuratorFeesReport({ fees, isLoading }: CuratorFeesReportProps) {
             <span className="stat-value">{formatMANA(totalFees)}</span>
           </div>
         </div>
-        <button onClick={copyToClipboard} className="copy-button">
-          Copy Multisig CSV
-        </button>
+        <div className="safe-action">
+          <button
+            onClick={createSafeTransaction}
+            className="copy-button"
+            disabled={isCreatingSafeTx || safeAppStatus === 'checking'}
+          >
+            {isCreatingSafeTx ? 'Creating Safe TX...' : 'Create Safe Transaction'}
+          </button>
+          {safeAppStatus === 'unavailable' && (
+            <p className="safe-tx-message safe-tx-hint">
+              Open this app from Safe Apps to create the multisig transaction.
+            </p>
+          )}
+          {safeInfo && (
+            <p className="safe-tx-message">
+              Safe connected: {shortAddress(safeInfo.safeAddress)}
+            </p>
+          )}
+          {safeTxHash && (
+            <p className="safe-tx-message safe-tx-success">
+              Transaction created: {shortAddress(safeTxHash)}
+            </p>
+          )}
+          {safeTxError && (
+            <p className="safe-tx-message safe-tx-error">{safeTxError}</p>
+          )}
+        </div>
       </div>
 
       <div className="fees-table">
@@ -279,4 +374,50 @@ export function CuratorFeesReport({ fees, isLoading }: CuratorFeesReportProps) {
       </div>
     </div>
   );
+}
+
+function buildSafeTransactions(fees: CuratorFeesSummary[]): BaseTransaction[] {
+  return fees.map((curator) => {
+    if (!isAddress(curator.paymentAddress)) {
+      throw new Error(`Invalid payment address for ${curator.curatorName}`);
+    }
+
+    return {
+      to: MANA_TOKEN_ADDRESS,
+      value: '0',
+      data: encodeFunctionData({
+        abi: ERC20_TRANSFER_ABI,
+        functionName: 'transfer',
+        args: [
+          curator.paymentAddress as Address,
+          parseEther(formatTokenAmount(curator.totalFees)),
+        ],
+      }),
+    };
+  });
+}
+
+function formatTokenAmount(amount: number): `${number}` {
+  return amount.toFixed(18).replace(/\.?0+$/, '') as `${number}`;
+}
+
+function isEmbedded() {
+  return window.parent !== window;
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timeout = window.setTimeout(() => {
+      reject(new Error('Safe did not respond. Open this app from Safe Apps and try again.'));
+    }, timeoutMs);
+
+    promise
+      .then(resolve)
+      .catch(reject)
+      .finally(() => window.clearTimeout(timeout));
+  });
+}
+
+function shortAddress(address: string) {
+  return `${address.slice(0, 6)}...${address.slice(-4)}`;
 }

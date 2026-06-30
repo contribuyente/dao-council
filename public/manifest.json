@@ -1,0 +1,12 @@
+{
+  "name": "DAO Council Curator Fees",
+  "short_name": "DAO Council",
+  "description": "Calculate Decentraland DAO curator fees and create Safe payment transactions.",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64",
+      "type": "image/x-icon"
+    }
+  ]
+}

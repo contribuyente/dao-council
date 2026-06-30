@@ -8,7 +8,7 @@ A web application for calculating and reporting curator fees in the Decentraland
 - **Curation Tracking**: View individual curator activities in chronological order
 - **Fee Calculation**: Automatically calculates curator fees (1/3 of creation fees) from GraphQL data
 - **Detailed Reports**: Expandable curator details showing individual curations with timestamps
-- **Multisig Integration**: Export payment data as CSV format for multisig wallet transactions
+- **Multisig Integration**: Create a Safe transaction batch for curator payments
 - **Blockchain Links**: Direct links to Polygonscan transactions and Decentraland marketplace items
 - **Item ID Extraction**: Workaround for GraphQL bug by parsing transaction logs to extract item IDs
 - **Duplicate Curation Handling**: Automatically identifies and excludes duplicate curations from fee calculations
@@ -23,6 +23,7 @@ A web application for calculating and reporting curator fees in the Decentraland
 - **Libraries**:
   - `date-fns` for date manipulation
   - `viem` for wei conversions and blockchain interaction
+  - `@safe-global/safe-apps-sdk` for Safe transaction creation
   - `wrangler` for local Cloudflare Pages development and deployment
   - Native fetch for GraphQL queries
 
@@ -119,7 +120,7 @@ The production URL will be `https://dao-council.pages.dev`.
 - Curator fee = `creationFee ÷ 3` (curator gets 1/3 of the creation fee)
 - **Duplicate Curation Handling**: Only the first curation of an item generates fees. Subsequent curations of the same item (edits/updates) show 0 fees and are excluded from payment calculations
 - Amounts are converted from wei (BigNumber) to MANA for display
-- CSV export converts back to wei for blockchain transactions
+- Safe transaction creation converts curator totals back to wei and creates one MANA ERC20 `transfer` call per curator
 
 ### Item ID Extraction
 
@@ -163,13 +164,15 @@ The application includes a mapping of curator addresses to names and payment add
 1. **Select Date Range**: Use the month picker for quick selection or custom from/to dates
 2. **View Results**: See summary statistics and curator list
 3. **Expand Details**: Click on any curator row to see individual curations
-4. **Export Data**: Click "Copy Multisig CSV" to get payment data for multisig wallets
+4. **Create Safe Transaction**: Open the deployed app from Safe Apps and click "Create Safe Transaction" to create a batched MANA payment transaction
 
-### CSV Export Format
+### Safe Transaction Creation
 
-The exported CSV follows this structure for multisig wallet imports:
+To create the multisig transaction:
 
-```csv
-token_type,token_address,receiver,amount
-erc20,0x0F5D2fB29fb7d3CFeE444a200298f468908cC942,{curator_address},{amount_in_wei}
-```
+1. Open the Safe web app for the DAO Council multisig
+2. Add `https://dao-council.pages.dev` as a custom Safe App if it is not already listed
+3. Open the app inside Safe Apps
+4. Generate the report and click "Create Safe Transaction"
+
+The button creates a Safe transaction batch with one MANA ERC20 `transfer` call per curator payment address. Safe will only allow transaction creation when the app is opened in Safe by an account with the required permissions.
