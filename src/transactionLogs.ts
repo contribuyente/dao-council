@@ -1,10 +1,9 @@
 import { createPublicClient, http } from 'viem';
 import { polygon } from 'viem/chains';
 
-// Create a public client for Polygon
 const publicClient = createPublicClient({
   chain: polygon,
-  transport: http('https://polygon-rpc.com'),
+  transport: http('/api/polygon-rpc'),
 });
 
 // ERC721 Transfer event signature: Transfer(address indexed from, address indexed to, uint256 indexed tokenId)

@@ -1,13 +1,17 @@
 import { useCallback, useState } from 'react'
 import { startOfMonth, endOfMonth } from 'date-fns'
 import { Tabs } from 'decentraland-ui/dist/components/Tabs/Tabs'
+import { CouncilStipends } from './components/CouncilStipends'
 import { DateRangePicker } from './components/DateRangePicker'
 import { CuratorFeesCalculator } from './components/CuratorFeesCalculator'
 import { CuratorFeesReport } from './components/CuratorFeesReport'
 import { DateRange, CuratorFeesSummary, RangeType } from './types'
 import './App.css'
 
+type AppTab = 'curators' | 'council';
+
 function App() {
+  const [activeTab, setActiveTab] = useState<AppTab>('curators');
   const [dateRange, setDateRange] = useState<DateRange>(() => {
     const now = new Date();
     const monthStart = startOfMonth(now);
@@ -50,30 +54,47 @@ function App() {
         </div>
         <nav className="app-navigation" aria-label="DCL DAO Council sections">
           <Tabs className="app-tabs">
-            <Tabs.Tab active>Curators</Tabs.Tab>
+            <Tabs.Tab
+              active={activeTab === 'curators'}
+              onClick={() => setActiveTab('curators')}
+            >
+              Curators
+            </Tabs.Tab>
+            <Tabs.Tab
+              active={activeTab === 'council'}
+              onClick={() => setActiveTab('council')}
+            >
+              Council
+            </Tabs.Tab>
           </Tabs>
         </nav>
       </header>
 
       <main className="app">
-        <DateRangePicker
-          dateRange={dateRange}
-          onDateRangeChange={handleDateRangeChange}
-          rangeType={rangeType}
-          onRangeTypeChange={handleRangeTypeChange}
-        />
-        
-        <CuratorFeesCalculator
-          dateRange={dateRange}
-          onFeesCalculated={handleFeesCalculated}
-          onLoadingChange={handleLoadingChange}
-        />
-        
-        <CuratorFeesReport
-          fees={curatorFees}
-          dateRange={dateRange}
-          isLoading={isLoading}
-        />
+        {activeTab === 'curators' ? (
+          <>
+            <DateRangePicker
+              dateRange={dateRange}
+              onDateRangeChange={handleDateRangeChange}
+              rangeType={rangeType}
+              onRangeTypeChange={handleRangeTypeChange}
+            />
+            
+            <CuratorFeesCalculator
+              dateRange={dateRange}
+              onFeesCalculated={handleFeesCalculated}
+              onLoadingChange={handleLoadingChange}
+            />
+            
+            <CuratorFeesReport
+              fees={curatorFees}
+              dateRange={dateRange}
+              isLoading={isLoading}
+            />
+          </>
+        ) : (
+          <CouncilStipends />
+        )}
       </main>
     </div>
   )

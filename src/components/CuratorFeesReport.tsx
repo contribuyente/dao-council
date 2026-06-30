@@ -1,25 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { format } from 'date-fns';
-import SafeAppsSDK, { type BaseTransaction, type SafeInfoExtended } from '@safe-global/safe-apps-sdk';
-import { encodeFunctionData, isAddress, parseEther, type Address } from 'viem';
 import { CuratorFeesSummary, DateRange } from '../types';
-
-const MANA_TOKEN_ADDRESS = '0x0F5D2fB29fb7d3CFeE444a200298f468908cC942';
-const SAFE_APP_TIMEOUT_MS = 2000;
-const ERC20_TRANSFER_ABI = [
-  {
-    type: 'function',
-    name: 'transfer',
-    stateMutability: 'nonpayable',
-    inputs: [
-      { name: 'to', type: 'address' },
-      { name: 'amount', type: 'uint256' },
-    ],
-    outputs: [{ name: '', type: 'bool' }],
-  },
-] as const;
-
-type SafeAppStatus = 'checking' | 'connected' | 'unavailable';
+import { formatManaAmount, type PaymentRecipient } from '../payments';
+import { SafePaymentStatus } from '../SafePaymentStatus';
+import { useSafePaymentAction } from '../useSafePaymentAction';
 
 interface CuratorFeesReportProps {
   fees: CuratorFeesSummary[];
@@ -29,50 +13,31 @@ interface CuratorFeesReportProps {
 
 export function CuratorFeesReport({ fees, isLoading }: CuratorFeesReportProps) {
   const [expandedCurator, setExpandedCurator] = useState<string | null>(null);
-  const [safeInfo, setSafeInfo] = useState<SafeInfoExtended | null>(null);
-  const [safeAppStatus, setSafeAppStatus] = useState<SafeAppStatus>('checking');
-  const [isCreatingSafeTx, setIsCreatingSafeTx] = useState(false);
-  const [safeTxHash, setSafeTxHash] = useState<string | null>(null);
-  const [safeTxError, setSafeTxError] = useState<string | null>(null);
-  const [csvCopyMessage, setCsvCopyMessage] = useState<string | null>(null);
   
   const totalFees = fees.reduce((sum, curator) => sum + curator.totalFees, 0);
   const totalCurations = fees.reduce((sum, curator) => sum + curator.curationCount, 0);
-  const isSafeApp = safeAppStatus === 'connected';
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const loadSafeInfo = async () => {
-      if (!isEmbedded()) {
-        setSafeAppStatus('unavailable');
-        return;
-      }
-
-      try {
-        const sdk = new SafeAppsSDK();
-        const info = await withTimeout(sdk.safe.getInfo(), SAFE_APP_TIMEOUT_MS);
-
-        if (isMounted) {
-          setSafeInfo(info);
-          setSafeAppStatus('connected');
-        }
-      } catch {
-        if (isMounted) {
-          setSafeAppStatus('unavailable');
-        }
-      }
-    };
-
-    loadSafeInfo();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  const payments = useMemo<PaymentRecipient[]>(
+    () =>
+      fees.map((curator) => ({
+        name: curator.curatorName,
+        address: curator.paymentAddress,
+        amountMana: curator.totalFees,
+      })),
+    [fees]
+  );
+  const {
+    safeInfo,
+    safeAppStatus,
+    safeTxHash,
+    safeTxError,
+    csvCopyMessage,
+    isCreatingSafeTx,
+    actionButtonLabel,
+    handlePaymentAction,
+  } = useSafePaymentAction(payments);
 
   const formatMANA = (amount: number) => {
-    return `${Number(amount.toFixed(2)).toLocaleString()} MANA`;
+    return formatManaAmount(amount);
   };
 
   const toggleCuratorExpansion = (curatorId: string) => {
@@ -97,76 +62,6 @@ export function CuratorFeesReport({ fees, isLoading }: CuratorFeesReportProps) {
     const date = new Date(parseInt(timestamp) * 1000);
     return format(date, 'MMM dd, yyyy HH:mm');
   };
-
-  const createSafeTransaction = async () => {
-    setSafeTxHash(null);
-    setSafeTxError(null);
-    setCsvCopyMessage(null);
-
-    if (!isEmbedded()) {
-      setSafeTxError('Open this app from Safe Apps to create a multisig transaction.');
-      return;
-    }
-
-    setIsCreatingSafeTx(true);
-
-    try {
-      const sdk = new SafeAppsSDK();
-      const currentSafeInfo =
-        safeInfo ?? (await withTimeout(sdk.safe.getInfo(), SAFE_APP_TIMEOUT_MS));
-
-      if (currentSafeInfo.isReadOnly) {
-        throw new Error('Connect to Safe as an owner to create this transaction.');
-      }
-
-      const txs = buildSafeTransactions(fees);
-      const response = await sdk.txs.send({ txs });
-
-      setSafeInfo(currentSafeInfo);
-      setSafeAppStatus('connected');
-      setSafeTxHash(response.safeTxHash);
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : 'Failed to create Safe transaction.';
-      setSafeTxError(message);
-    } finally {
-      setIsCreatingSafeTx(false);
-    }
-  };
-
-  const copyMultisigCSV = async () => {
-    setSafeTxHash(null);
-    setSafeTxError(null);
-    setCsvCopyMessage(null);
-
-    try {
-      await navigator.clipboard.writeText(generateMultisigCSV(fees));
-      setCsvCopyMessage('Multisig CSV copied to clipboard.');
-    } catch {
-      setSafeTxError('Could not copy CSV to clipboard.');
-    }
-  };
-
-  const handlePaymentAction = () => {
-    if (isSafeApp) {
-      createSafeTransaction();
-      return;
-    }
-
-    copyMultisigCSV();
-  };
-
-  const actionButtonLabel = (() => {
-    if (isCreatingSafeTx) {
-      return 'Creating Transaction...';
-    }
-
-    if (safeAppStatus === 'checking') {
-      return 'Checking Safe...';
-    }
-
-    return isSafeApp ? 'Create Transaction' : 'Copy Multisig CSV';
-  })();
 
   if (isLoading) {
     return (
@@ -210,27 +105,13 @@ export function CuratorFeesReport({ fees, isLoading }: CuratorFeesReportProps) {
           >
             {actionButtonLabel}
           </button>
-          {safeAppStatus === 'unavailable' && (
-            <p className="safe-tx-message safe-tx-hint">
-              Open this app from Safe Apps to create the multisig transaction directly.
-            </p>
-          )}
-          {safeInfo && (
-            <p className="safe-tx-message">
-              Safe connected: {shortAddress(safeInfo.safeAddress)}
-            </p>
-          )}
-          {safeTxHash && (
-            <p className="safe-tx-message safe-tx-success">
-              Transaction created: {shortAddress(safeTxHash)}
-            </p>
-          )}
-          {safeTxError && (
-            <p className="safe-tx-message safe-tx-error">{safeTxError}</p>
-          )}
-          {csvCopyMessage && (
-            <p className="safe-tx-message safe-tx-success">{csvCopyMessage}</p>
-          )}
+          <SafePaymentStatus
+            safeInfo={safeInfo}
+            safeAppStatus={safeAppStatus}
+            safeTxHash={safeTxHash}
+            safeTxError={safeTxError}
+            csvCopyMessage={csvCopyMessage}
+          />
         </div>
       </div>
 
@@ -414,59 +295,4 @@ export function CuratorFeesReport({ fees, isLoading }: CuratorFeesReportProps) {
       </div>
     </div>
   );
-}
-
-function generateMultisigCSV(fees: CuratorFeesSummary[]) {
-  const rows = fees.map((curator) => {
-    const totalAmountWei = parseEther(formatTokenAmount(curator.totalFees)).toString();
-    return `erc20,${MANA_TOKEN_ADDRESS},${curator.paymentAddress},${totalAmountWei}`;
-  });
-
-  return ['token_type,token_address,receiver,amount', ...rows].join('\n');
-}
-
-function buildSafeTransactions(fees: CuratorFeesSummary[]): BaseTransaction[] {
-  return fees.map((curator) => {
-    if (!isAddress(curator.paymentAddress)) {
-      throw new Error(`Invalid payment address for ${curator.curatorName}`);
-    }
-
-    return {
-      to: MANA_TOKEN_ADDRESS,
-      value: '0',
-      data: encodeFunctionData({
-        abi: ERC20_TRANSFER_ABI,
-        functionName: 'transfer',
-        args: [
-          curator.paymentAddress as Address,
-          parseEther(formatTokenAmount(curator.totalFees)),
-        ],
-      }),
-    };
-  });
-}
-
-function formatTokenAmount(amount: number): `${number}` {
-  return amount.toFixed(18).replace(/\.?0+$/, '') as `${number}`;
-}
-
-function isEmbedded() {
-  return window.parent !== window;
-}
-
-function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const timeout = window.setTimeout(() => {
-      reject(new Error('Safe did not respond. Open this app from Safe Apps and try again.'));
-    }, timeoutMs);
-
-    promise
-      .then(resolve)
-      .catch(reject)
-      .finally(() => window.clearTimeout(timeout));
-  });
-}
-
-function shortAddress(address: string) {
-  return `${address.slice(0, 6)}...${address.slice(-4)}`;
 }
