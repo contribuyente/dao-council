@@ -34,9 +34,11 @@ export function CuratorFeesReport({ fees, isLoading }: CuratorFeesReportProps) {
   const [isCreatingSafeTx, setIsCreatingSafeTx] = useState(false);
   const [safeTxHash, setSafeTxHash] = useState<string | null>(null);
   const [safeTxError, setSafeTxError] = useState<string | null>(null);
+  const [csvCopyMessage, setCsvCopyMessage] = useState<string | null>(null);
   
   const totalFees = fees.reduce((sum, curator) => sum + curator.totalFees, 0);
   const totalCurations = fees.reduce((sum, curator) => sum + curator.curationCount, 0);
+  const isSafeApp = safeAppStatus === 'connected';
 
   useEffect(() => {
     let isMounted = true;
@@ -99,6 +101,7 @@ export function CuratorFeesReport({ fees, isLoading }: CuratorFeesReportProps) {
   const createSafeTransaction = async () => {
     setSafeTxHash(null);
     setSafeTxError(null);
+    setCsvCopyMessage(null);
 
     if (!isEmbedded()) {
       setSafeTxError('Open this app from Safe Apps to create a multisig transaction.');
@@ -130,6 +133,40 @@ export function CuratorFeesReport({ fees, isLoading }: CuratorFeesReportProps) {
       setIsCreatingSafeTx(false);
     }
   };
+
+  const copyMultisigCSV = async () => {
+    setSafeTxHash(null);
+    setSafeTxError(null);
+    setCsvCopyMessage(null);
+
+    try {
+      await navigator.clipboard.writeText(generateMultisigCSV(fees));
+      setCsvCopyMessage('Multisig CSV copied to clipboard.');
+    } catch {
+      setSafeTxError('Could not copy CSV to clipboard.');
+    }
+  };
+
+  const handlePaymentAction = () => {
+    if (isSafeApp) {
+      createSafeTransaction();
+      return;
+    }
+
+    copyMultisigCSV();
+  };
+
+  const actionButtonLabel = (() => {
+    if (isCreatingSafeTx) {
+      return 'Creating Transaction...';
+    }
+
+    if (safeAppStatus === 'checking') {
+      return 'Checking Safe...';
+    }
+
+    return isSafeApp ? 'Create Transaction' : 'Copy Multisig CSV';
+  })();
 
   if (isLoading) {
     return (
@@ -167,15 +204,15 @@ export function CuratorFeesReport({ fees, isLoading }: CuratorFeesReportProps) {
         </div>
         <div className="safe-action">
           <button
-            onClick={createSafeTransaction}
+            onClick={handlePaymentAction}
             className="copy-button"
             disabled={isCreatingSafeTx || safeAppStatus === 'checking'}
           >
-            {isCreatingSafeTx ? 'Creating Safe TX...' : 'Create Safe Transaction'}
+            {actionButtonLabel}
           </button>
           {safeAppStatus === 'unavailable' && (
             <p className="safe-tx-message safe-tx-hint">
-              Open this app from Safe Apps to create the multisig transaction.
+              Open this app from Safe Apps to create the multisig transaction directly.
             </p>
           )}
           {safeInfo && (
@@ -190,6 +227,9 @@ export function CuratorFeesReport({ fees, isLoading }: CuratorFeesReportProps) {
           )}
           {safeTxError && (
             <p className="safe-tx-message safe-tx-error">{safeTxError}</p>
+          )}
+          {csvCopyMessage && (
+            <p className="safe-tx-message safe-tx-success">{csvCopyMessage}</p>
           )}
         </div>
       </div>
@@ -374,6 +414,15 @@ export function CuratorFeesReport({ fees, isLoading }: CuratorFeesReportProps) {
       </div>
     </div>
   );
+}
+
+function generateMultisigCSV(fees: CuratorFeesSummary[]) {
+  const rows = fees.map((curator) => {
+    const totalAmountWei = parseEther(formatTokenAmount(curator.totalFees)).toString();
+    return `erc20,${MANA_TOKEN_ADDRESS},${curator.paymentAddress},${totalAmountWei}`;
+  });
+
+  return ['token_type,token_address,receiver,amount', ...rows].join('\n');
 }
 
 function buildSafeTransactions(fees: CuratorFeesSummary[]): BaseTransaction[] {
