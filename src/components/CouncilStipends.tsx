@@ -7,8 +7,9 @@ import {
   shortAddress,
   type PaymentRecipient,
 } from '../payments';
-import { SafePaymentStatus } from '../SafePaymentStatus';
+import { PaymentActionStatus } from '../PaymentActionStatus';
 import { useSafePaymentAction } from '../useSafePaymentAction';
+import type { SafeConnection } from '../useSafeConnection';
 
 const DEFAULT_STIPEND_USD = '1000';
 
@@ -22,7 +23,7 @@ type ManaPriceResponse = ManaPrice | { error: string };
 
 type PriceStatus = 'loading' | 'ready' | 'error';
 
-export function CouncilStipends() {
+export function CouncilStipends({ safeInfo, safeAppStatus }: SafeConnection) {
   const [members, setMembers] = useState(councilMembers);
   const [stipendUsd, setStipendUsd] = useState(DEFAULT_STIPEND_USD);
   const [manaPrice, setManaPrice] = useState<ManaPrice | null>(null);
@@ -50,15 +51,12 @@ export function CouncilStipends() {
   );
 
   const {
-    safeInfo,
-    safeAppStatus,
     safeTxHash,
     safeTxError,
-    csvCopyMessage,
     isCreatingSafeTx,
     actionButtonLabel,
     handlePaymentAction,
-  } = useSafePaymentAction(payments);
+  } = useSafePaymentAction(payments, { safeInfo, safeAppStatus });
 
   const loadManaPrice = useCallback(async () => {
     setPriceStatus('loading');
@@ -231,12 +229,9 @@ export function CouncilStipends() {
             >
               {paymentButtonLabel}
             </button>
-            <SafePaymentStatus
-              safeInfo={safeInfo}
-              safeAppStatus={safeAppStatus}
+            <PaymentActionStatus
               safeTxHash={safeTxHash}
               safeTxError={safeTxError}
-              csvCopyMessage={csvCopyMessage}
             />
           </div>
         </div>

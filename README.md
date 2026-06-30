@@ -190,7 +190,7 @@ To create the multisig transaction:
 
 The button creates a Safe transaction batch with one Ethereum mainnet MANA ERC20 `transfer` call per payment address. Safe will only allow transaction creation when the app is opened in Safe by an account with the required permissions. The app blocks Safe transaction creation if the connected Safe is not on Ethereum mainnet.
 
-If the app is opened outside Safe, the payment action becomes "Copy Multisig CSV" and copies the same payment data in CSV format for manual import.
+If the app is opened outside Safe, the payment action becomes "Copy CSV" and copies the same payment data in CSV format for manual import.
 
 ### Council Stipends
 
@@ -198,6 +198,6 @@ If the app is opened outside Safe, the payment action becomes "Copy Multisig CSV
 2. Review the current MANA/USD price
 3. Adjust the monthly USD stipend if needed; it defaults to `$1000`
 4. Edit any Council member payment address if needed
-5. Click "Create Transaction" inside Safe, or "Copy Multisig CSV" outside Safe
+5. Click "Create Transaction" inside Safe, or "Copy CSV" outside Safe
 
 The Council tab calculates `stipend USD ÷ MANA/USD price` for each member and creates one Ethereum mainnet MANA transfer per Council member.

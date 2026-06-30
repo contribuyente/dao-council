@@ -2,16 +2,22 @@ import React, { useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import { CuratorFeesSummary, DateRange } from '../types';
 import { formatManaAmount, type PaymentRecipient } from '../payments';
-import { SafePaymentStatus } from '../SafePaymentStatus';
+import { PaymentActionStatus } from '../PaymentActionStatus';
 import { useSafePaymentAction } from '../useSafePaymentAction';
+import type { SafeConnection } from '../useSafeConnection';
 
-interface CuratorFeesReportProps {
+interface CuratorFeesReportProps extends SafeConnection {
   fees: CuratorFeesSummary[];
   dateRange: DateRange;
   isLoading: boolean;
 }
 
-export function CuratorFeesReport({ fees, isLoading }: CuratorFeesReportProps) {
+export function CuratorFeesReport({
+  fees,
+  isLoading,
+  safeInfo,
+  safeAppStatus,
+}: CuratorFeesReportProps) {
   const [expandedCurator, setExpandedCurator] = useState<string | null>(null);
   
   const totalFees = fees.reduce((sum, curator) => sum + curator.totalFees, 0);
@@ -26,15 +32,12 @@ export function CuratorFeesReport({ fees, isLoading }: CuratorFeesReportProps) {
     [fees]
   );
   const {
-    safeInfo,
-    safeAppStatus,
     safeTxHash,
     safeTxError,
-    csvCopyMessage,
     isCreatingSafeTx,
     actionButtonLabel,
     handlePaymentAction,
-  } = useSafePaymentAction(payments);
+  } = useSafePaymentAction(payments, { safeInfo, safeAppStatus });
 
   const formatMANA = (amount: number) => {
     return formatManaAmount(amount);
@@ -105,12 +108,9 @@ export function CuratorFeesReport({ fees, isLoading }: CuratorFeesReportProps) {
           >
             {actionButtonLabel}
           </button>
-          <SafePaymentStatus
-            safeInfo={safeInfo}
-            safeAppStatus={safeAppStatus}
+          <PaymentActionStatus
             safeTxHash={safeTxHash}
             safeTxError={safeTxError}
-            csvCopyMessage={csvCopyMessage}
           />
         </div>
       </div>

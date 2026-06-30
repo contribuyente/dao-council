@@ -5,13 +5,16 @@ import { CouncilStipends } from './components/CouncilStipends'
 import { DateRangePicker } from './components/DateRangePicker'
 import { CuratorFeesCalculator } from './components/CuratorFeesCalculator'
 import { CuratorFeesReport } from './components/CuratorFeesReport'
+import { SafeConnectionStatus } from './SafeConnectionStatus'
 import { DateRange, CuratorFeesSummary, RangeType } from './types'
+import { useSafeConnection } from './useSafeConnection'
 import './App.css'
 
 type AppTab = 'curators' | 'council';
 
 function App() {
   const [activeTab, setActiveTab] = useState<AppTab>('curators');
+  const safeConnection = useSafeConnection();
   const [dateRange, setDateRange] = useState<DateRange>(() => {
     const now = new Date();
     const monthStart = startOfMonth(now);
@@ -51,6 +54,7 @@ function App() {
       <header className="app-header">
         <div className="app-header-content">
           <h1 className="app-title">DCL DAO Council</h1>
+          <SafeConnectionStatus {...safeConnection} />
         </div>
         <nav className="app-navigation" aria-label="DCL DAO Council sections">
           <Tabs className="app-tabs">
@@ -90,10 +94,11 @@ function App() {
               fees={curatorFees}
               dateRange={dateRange}
               isLoading={isLoading}
+              {...safeConnection}
             />
           </>
         ) : (
-          <CouncilStipends />
+          <CouncilStipends {...safeConnection} />
         )}
       </main>
     </div>

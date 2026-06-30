@@ -1,58 +1,42 @@
-import { useEffect, useMemo, useState } from 'react';
-import SafeAppsSDK, { type SafeInfoExtended } from '@safe-global/safe-apps-sdk';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import SafeAppsSDK from '@safe-global/safe-apps-sdk';
 import {
   ETHEREUM_CHAIN_ID,
   buildSafeTransactions,
   generateMultisigCSV,
   type PaymentRecipient,
 } from './payments';
+import {
+  getSafeInfoWithTimeout,
+  isEmbedded,
+  type SafeConnection,
+} from './useSafeConnection';
 
-const SAFE_APP_TIMEOUT_MS = 2000;
-
-type SafeAppStatus = 'checking' | 'connected' | 'unavailable';
-
-export function useSafePaymentAction(payments: PaymentRecipient[]) {
-  const [safeInfo, setSafeInfo] = useState<SafeInfoExtended | null>(null);
-  const [safeAppStatus, setSafeAppStatus] = useState<SafeAppStatus>('checking');
+export function useSafePaymentAction(
+  payments: PaymentRecipient[],
+  { safeInfo, safeAppStatus }: SafeConnection
+) {
   const [isCreatingSafeTx, setIsCreatingSafeTx] = useState(false);
   const [safeTxHash, setSafeTxHash] = useState<string | null>(null);
   const [safeTxError, setSafeTxError] = useState<string | null>(null);
-  const [csvCopyMessage, setCsvCopyMessage] = useState<string | null>(null);
+  const [isCopied, setIsCopied] = useState(false);
+  const copiedTimeoutRef = useRef<number | null>(null);
 
   const isSafeApp = safeAppStatus === 'connected';
 
   useEffect(() => {
-    let isMounted = true;
-
-    const loadSafeInfo = async () => {
-      if (!isEmbedded()) {
-        setSafeAppStatus('unavailable');
-        return;
-      }
-
-      try {
-        const sdk = new SafeAppsSDK();
-        const info = await withTimeout(sdk.safe.getInfo(), SAFE_APP_TIMEOUT_MS);
-
-        if (isMounted) {
-          setSafeInfo(info);
-          setSafeAppStatus('connected');
-        }
-      } catch {
-        if (isMounted) {
-          setSafeAppStatus('unavailable');
-        }
-      }
-    };
-
-    loadSafeInfo();
-
     return () => {
-      isMounted = false;
+      if (copiedTimeoutRef.current) {
+        window.clearTimeout(copiedTimeoutRef.current);
+      }
     };
   }, []);
 
   const actionButtonLabel = useMemo(() => {
+    if (isCopied) {
+      return 'Copied!';
+    }
+
     if (isCreatingSafeTx) {
       return 'Creating Transaction...';
     }
@@ -61,13 +45,13 @@ export function useSafePaymentAction(payments: PaymentRecipient[]) {
       return 'Checking Safe...';
     }
 
-    return isSafeApp ? 'Create Transaction' : 'Copy Multisig CSV';
-  }, [isCreatingSafeTx, isSafeApp, safeAppStatus]);
+    return isSafeApp ? 'Create Transaction' : 'Copy CSV';
+  }, [isCopied, isCreatingSafeTx, isSafeApp, safeAppStatus]);
 
   const createSafeTransaction = async () => {
     setSafeTxHash(null);
     setSafeTxError(null);
-    setCsvCopyMessage(null);
+    setIsCopied(false);
 
     if (!isEmbedded()) {
       setSafeTxError('Open this app from Safe Apps to create a multisig transaction.');
@@ -78,8 +62,7 @@ export function useSafePaymentAction(payments: PaymentRecipient[]) {
 
     try {
       const sdk = new SafeAppsSDK();
-      const currentSafeInfo =
-        safeInfo ?? (await withTimeout(sdk.safe.getInfo(), SAFE_APP_TIMEOUT_MS));
+      const currentSafeInfo = safeInfo ?? (await getSafeInfoWithTimeout());
 
       if (currentSafeInfo.chainId !== ETHEREUM_CHAIN_ID) {
         throw new Error('Switch Safe to Ethereum mainnet to create MANA payments.');
@@ -92,8 +75,6 @@ export function useSafePaymentAction(payments: PaymentRecipient[]) {
       const txs = buildSafeTransactions(payments);
       const response = await sdk.txs.send({ txs });
 
-      setSafeInfo(currentSafeInfo);
-      setSafeAppStatus('connected');
       setSafeTxHash(response.safeTxHash);
     } catch (err) {
       const message =
@@ -107,11 +88,19 @@ export function useSafePaymentAction(payments: PaymentRecipient[]) {
   const copyMultisigCSV = async () => {
     setSafeTxHash(null);
     setSafeTxError(null);
-    setCsvCopyMessage(null);
 
     try {
       await navigator.clipboard.writeText(generateMultisigCSV(payments));
-      setCsvCopyMessage('Multisig CSV copied to clipboard.');
+      setIsCopied(true);
+
+      if (copiedTimeoutRef.current) {
+        window.clearTimeout(copiedTimeoutRef.current);
+      }
+
+      copiedTimeoutRef.current = window.setTimeout(() => {
+        setIsCopied(false);
+        copiedTimeoutRef.current = null;
+      }, 1000);
     } catch {
       setSafeTxError('Could not copy CSV to clipboard.');
     }
@@ -131,27 +120,9 @@ export function useSafePaymentAction(payments: PaymentRecipient[]) {
     safeAppStatus,
     safeTxHash,
     safeTxError,
-    csvCopyMessage,
     isCreatingSafeTx,
     actionButtonLabel,
     handlePaymentAction,
     isSafeApp,
   };
-}
-
-function isEmbedded() {
-  return window.parent !== window;
-}
-
-function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const timeout = window.setTimeout(() => {
-      reject(new Error('Safe did not respond. Open this app from Safe Apps and try again.'));
-    }, timeoutMs);
-
-    promise
-      .then(resolve)
-      .catch(reject)
-      .finally(() => window.clearTimeout(timeout));
-  });
 }
