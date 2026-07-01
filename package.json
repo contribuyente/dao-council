@@ -7,14 +7,22 @@
     "node": ">=20.19.0"
   },
   "scripts": {
-    "dev": "vite build --mode development && wrangler pages dev --env-file .env --port 5173 --ip 0.0.0.0",
+    "dev": "concurrently -k -n web,automation \"npm run dev:web\" \"npm run dev:automation\"",
+    "dev:web": "vite build --mode development && wrangler pages dev --env-file .env --port 5173 --ip 0.0.0.0",
+    "dev:automation": "wrangler dev -c wrangler.automation.jsonc --env-file .env --port 8787",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
+    "test": "vitest run",
     "preview": "npm run build && wrangler pages dev --env-file .env --port 4173",
-    "deploy": "npm run build && wrangler pages deploy"
+    "deploy": "npm run build && npm run deploy:pages && npm run deploy:automation",
+    "deploy:pages": "wrangler pages deploy",
+    "deploy:automation": "wrangler deploy -c wrangler.automation.jsonc"
   },
   "dependencies": {
+    "@safe-global/api-kit": "^5.0.1",
+    "@safe-global/protocol-kit": "^8.0.1",
     "@safe-global/safe-apps-sdk": "^9.1.0",
+    "@safe-global/types-kit": "^4.0.1",
     "date-fns": "^4.4.0",
     "decentraland-ui": "^7.2.0",
     "react": "^19.2.7",
@@ -27,6 +35,7 @@
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
+    "concurrently": "^10.0.3",
     "eslint": "^10.6.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.3",
@@ -34,6 +43,7 @@
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.62.0",
     "vite": "^8.1.0",
+    "vitest": "^4.1.9",
     "wrangler": "^4.105.0"
   },
   "overrides": {

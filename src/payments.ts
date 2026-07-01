@@ -1,4 +1,3 @@
-import type { BaseTransaction } from '@safe-global/safe-apps-sdk';
 import { encodeFunctionData, isAddress, parseEther, type Address } from 'viem';
 
 export const ETHEREUM_CHAIN_ID = 1;
@@ -23,6 +22,12 @@ export type PaymentRecipient = {
   amountMana: number;
 };
 
+export type PaymentTransaction = {
+  to: string;
+  value: string;
+  data: string;
+};
+
 export function generateMultisigCSV(payments: PaymentRecipient[]) {
   const rows = payments.map((payment) => {
     const totalAmountWei = parseEther(formatTokenAmount(payment.amountMana)).toString();
@@ -32,7 +37,7 @@ export function generateMultisigCSV(payments: PaymentRecipient[]) {
   return ['token_type,token_address,receiver,amount', ...rows].join('\n');
 }
 
-export function buildSafeTransactions(payments: PaymentRecipient[]): BaseTransaction[] {
+export function buildSafeTransactions(payments: PaymentRecipient[]): PaymentTransaction[] {
   return payments.map((payment) => {
     if (!isAddress(payment.address)) {
       throw new Error(`Invalid payment address for ${payment.name}`);

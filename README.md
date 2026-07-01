@@ -11,6 +11,7 @@ A web application for Decentraland DAO Council workflows. The Curators tab calcu
 - **Council Stipends**: Calculate monthly Council member stipend payments from a USD amount and the live MANA/USD price
 - **Editable Payment Details**: Adjust Council stipend amounts and member payment addresses before creating a transaction
 - **Multisig Integration**: Create a Safe transaction batch for payments, or copy a multisig CSV outside Safe
+- **Automation Worker**: Optionally propose monthly curator and council Safe transactions through a scheduled Cloudflare Worker and announce them in Discord
 - **Blockchain Links**: Direct links to Polygonscan transactions and Decentraland marketplace items
 - **Item ID Extraction**: Workaround for GraphQL bug by parsing transaction logs to extract item IDs
 - **Duplicate Curation Handling**: Automatically identifies and excludes duplicate curations from fee calculations
@@ -19,6 +20,7 @@ A web application for Decentraland DAO Council workflows. The Curators tab calcu
 
 - **Frontend**: React + TypeScript + Vite
 - **Cloudflare Runtime**: Cloudflare Pages with Pages Functions
+- **Automation Runtime**: Cloudflare Workers Cron Triggers with KV idempotency
 - **Styling**: CSS with dark theme and `decentraland-ui` tabs
 - **Data Sources**: Decentraland GraphQL subgraph, Polygon transaction receipts, and live MANA/USD price data proxied through the app's Pages Function API
 - **Blockchain**: Polygon curation data; Ethereum mainnet MANA payments
@@ -26,6 +28,7 @@ A web application for Decentraland DAO Council workflows. The Curators tab calcu
   - `date-fns` for date manipulation
   - `viem` for wei conversions and blockchain interaction
   - `@safe-global/safe-apps-sdk` for Safe transaction creation
+  - `@safe-global/api-kit` and `@safe-global/protocol-kit` for automated Safe Transaction Service proposals
   - `decentraland-ui` for navigation tabs
   - `wrangler` for local Cloudflare Pages development and deployment
   - Native fetch for GraphQL queries
@@ -53,15 +56,15 @@ cd dao-council
 npm install
 ```
 
-3. Build and start the local Cloudflare Pages development server:
+3. Build and start the local Cloudflare Pages development server plus automation Worker:
 
 ```bash
 npm run dev
 ```
 
-4. Open [http://localhost:5173](http://localhost:5173) in your browser
+4. Open [http://localhost:5173](http://localhost:5173) in your browser. The automation Worker runs at [http://localhost:8787](http://localhost:8787).
 
-`npm run dev` builds the React app and runs it with the Pages Function API locally. The browser calls the same-origin `/api/curations` endpoint for processed curator fee data, and `/api/graphql` remains available as a raw Decentraland subgraph proxy. This replaces the old `corsproxy.io` workaround.
+`npm run dev` builds the React app, runs it with the Pages Function API locally, and starts the automation Worker. Use `npm run dev:web` or `npm run dev:automation` to run only one side. The browser calls the same-origin `/api/curations` endpoint for processed curator fee data, and `/api/graphql` remains available as a raw Decentraland subgraph proxy. This replaces the old `corsproxy.io` workaround.
 
 The app routes are `/curators` and `/council`. The curator report range is shareable through date query params, for example `/curators?from=2026-06-01&to=2026-06-30`.
 
@@ -71,7 +74,7 @@ The app routes are `/curators` and `/council`. The curator report range is share
 npm run build
 ```
 
-The built browser assets will be in the `dist` directory. Pages Functions are defined in the root `functions` directory.
+The built browser assets will be in the `dist` directory. Pages Functions are defined in the root `functions` directory. The automation Worker entrypoint is `worker/automation-worker.ts`.
 
 ### Previewing Production Locally
 
@@ -95,7 +98,7 @@ Then deploy:
 npm run deploy
 ```
 
-This repository now deploys to Cloudflare Pages with a Pages Function API route. Vercel is no longer required.
+This repository now deploys to Cloudflare Pages with a Pages Function API route, plus an optional separate automation Worker. Vercel is no longer required.
 
 For Git-based Cloudflare deployments, create a Pages project connected to this repository with:
 
@@ -106,6 +109,14 @@ For Git-based Cloudflare deployments, create a Pages project connected to this r
 - **Root directory**: `/`
 
 The production URL will be `https://dao-council.pages.dev`.
+
+Deploy the automation Worker after creating its KV namespace and secrets:
+
+```bash
+npm run deploy:automation
+```
+
+`npm run deploy` builds the app and deploys both Pages and the automation Worker. Do not enable live automation until `AUTOMATION_DRY_RUN=true` has been tested in production.
 
 ## How It Works
 
@@ -119,6 +130,17 @@ The production URL will be `https://dao-council.pages.dev`.
 6. **Fee Calculation**: For each curation, calculates `creationFee ÷ 3` as curator payment (only for first curation per item)
 7. **Data Processing**: The Pages Function groups curations by curator and aggregates totals (excluding 0-fee duplicates)
 8. **Report Generation**: Displays results with expandable details and export options
+
+### Automation Worker Flow
+
+1. The Worker cron runs on the 1st day of each month at `15:00 UTC`
+2. It calculates the previous UTC calendar month
+3. It calls the same shared curation report logic used by `/api/curations`
+4. It blocks curator automation if unresolved Polygon receipt warnings exist
+5. It fetches the MANA/USD price and calculates council stipend payments from `COUNCIL_STIPEND_USD`
+6. It creates separate Safe Transaction Service proposals for curators and council stipends
+7. It stores per-period status in `AUTOMATION_RUNS_KV` to avoid duplicate proposals
+8. It posts a summary with Safe links to Discord
 
 ### Fee Calculation Logic
 
@@ -170,6 +192,74 @@ POLYGON_RPC_URL=https://your-polygon-rpc.example
 Locally, `npm run dev` passes `.env` to Wrangler, so put the variable there or copy `.env.example` to `.env`. If `POLYGON_RPC_URL` is not set, the app falls back to the public RPC endpoints. `POLYGON_RPC_ENDPOINT` is also accepted as a backwards-compatible alias.
 
 Receipt lookups are batched through JSON-RPC because item IDs have to be recovered from transaction receipts. `POLYGON_RPC_BATCH_SIZE` defaults to `10`; lower it if your provider rate-limits batched requests, or raise it if your provider supports larger batches. Failed internal-error batches are retried in smaller chunks. `POLYGON_RPC_BATCH_DELAY_MS` defaults to `0`.
+
+### Automation Worker
+
+Copy `.env.example` to `.env` for local development and fill in the automation values when testing the Worker:
+
+```bash
+AUTOMATION_DRY_RUN=true
+AUTOMATION_ADMIN_TOKEN=local-test-token
+AUTOMATION_PROPOSER_PRIVATE_KEY=0x...
+SAFE_API_KEY=...
+ETHEREUM_RPC_URL=https://eth-mainnet.g.alchemy.com/v2/...
+SAFE_ADDRESS=0x...
+SAFE_CHAIN_ID=1
+COUNCIL_STIPEND_USD=1000
+DISCORD_BOT_TOKEN=...
+DISCORD_CHANNEL_ID=...
+```
+
+`AUTOMATION_DRY_RUN=true` computes payments and Discord text but does not create Safe proposals or write completed KV idempotency records. Keep it enabled for the first Cloudflare deployment.
+
+Manual local run:
+
+```bash
+curl -X POST "http://localhost:8787/run" \
+  -H "Authorization: Bearer $AUTOMATION_ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  --data '{"dryRun":true,"notifyDiscord":false}'
+```
+
+Local scheduled test:
+
+```bash
+curl "http://localhost:8787/cdn-cgi/handler/scheduled?cron=0+15+1+*+*"
+```
+
+Cloudflare setup:
+
+1. Create a KV namespace named `dao-council-automation-runs`
+2. Replace the placeholder `kv_namespaces[0].id` in `wrangler.automation.jsonc`
+3. Add Worker secrets with `wrangler secret put <NAME> -c wrangler.automation.jsonc`:
+   - `AUTOMATION_PROPOSER_PRIVATE_KEY`
+   - `AUTOMATION_ADMIN_TOKEN`
+   - `SAFE_API_KEY`
+   - `ETHEREUM_RPC_URL`
+   - `POLYGON_RPC_URL`
+   - `DISCORD_BOT_TOKEN`
+4. Add Worker vars in Cloudflare or `wrangler.automation.jsonc`:
+   - `SAFE_ADDRESS`
+   - `DISCORD_CHANNEL_ID`
+   - `COUNCIL_STIPEND_USD=1000`
+   - `SAFE_CHAIN_ID=1`
+   - `AUTOMATION_DRY_RUN=true` for the first deployment
+
+Safe setup:
+
+1. Generate a new Ethereum private key dedicated to automation
+2. Derive its address
+3. Add that address as a Safe Transaction Service delegate/proposer for the Council Safe; do not add it as an on-chain Safe owner
+4. Generate a Safe API key
+5. Confirm proposals from that address appear in Safe with zero owner confirmations
+
+Discord setup:
+
+1. Create a Discord application and bot
+2. Add the bot to the Council server
+3. Create `#multisig-ops`
+4. Give the bot only `View Channel` and `Send Messages` in that channel
+5. Copy the bot token and channel ID into Cloudflare Worker secrets/vars
 
 ### Curator Data
 

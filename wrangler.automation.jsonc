@@ -1,0 +1,21 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "dao-council-automation",
+  "main": "worker/automation-worker.ts",
+  "compatibility_date": "2026-07-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "triggers": {
+    "crons": ["0 15 1 * *"]
+  },
+  "kv_namespaces": [
+    {
+      "binding": "AUTOMATION_RUNS_KV",
+      "id": "replace-with-cloudflare-kv-namespace-id"
+    }
+  ],
+  "vars": {
+    "SAFE_CHAIN_ID": "1",
+    "COUNCIL_STIPEND_USD": "1000",
+    "AUTOMATION_DRY_RUN": "true"
+  }
+}
