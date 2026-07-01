@@ -24,11 +24,13 @@ export function CuratorFeesReport({
   const totalCurations = fees.reduce((sum, curator) => sum + curator.curationCount, 0);
   const payments = useMemo<PaymentRecipient[]>(
     () =>
-      fees.map((curator) => ({
-        name: curator.curatorName,
-        address: curator.paymentAddress,
-        amountMana: curator.totalFees,
-      })),
+      fees
+        .filter((curator) => curator.totalFees > 0)
+        .map((curator) => ({
+          name: curator.curatorName,
+          address: curator.paymentAddress,
+          amountMana: curator.totalFees,
+        })),
     [fees]
   );
   const {
@@ -104,10 +106,17 @@ export function CuratorFeesReport({
           <button
             onClick={handlePaymentAction}
             className="copy-button"
-            disabled={isCreatingSafeTx || safeAppStatus === 'checking'}
+            disabled={
+              isCreatingSafeTx ||
+              safeAppStatus === 'checking' ||
+              payments.length === 0
+            }
           >
             {actionButtonLabel}
           </button>
+          {payments.length === 0 && (
+            <p className="safe-tx-message">No payments due for this period.</p>
+          )}
           <PaymentActionStatus
             safeTxHash={safeTxHash}
             safeTxError={safeTxError}

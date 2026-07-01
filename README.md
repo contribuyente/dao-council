@@ -109,9 +109,9 @@ The production URL will be `https://dao-council.pages.dev`.
 
 ### Data Flow
 
-1. **Processed Curations Query**: The frontend requests `/api/curations?from={unixTimestamp}&to={unixTimestamp}`; the Cloudflare Pages Function fetches the matching curation data from Decentraland's subgraph
+1. **Processed Curations Query**: The frontend requests `/api/curations?from={unixTimestamp}&to={unixTimestamp}`; the Cloudflare Pages Function fetches the report window first, then fetches curation history only for collections that appear in that report
 2. **MANA Price Query**: The Council tab requests `/api/mana-price`; the Pages Function fetches the current MANA/USD price from Coinbase with CoinGecko as a fallback
-3. **Transaction Log Extraction**: For each unique curation transaction, the `/api/curations` function fetches the Polygon receipt and extracts item IDs from curation events
+3. **Transaction Log Extraction**: For each unique historical curation transaction up to the report end date, the `/api/curations` function fetches the Polygon receipt and extracts item IDs from curation events
 4. **Item Matching**: Matches item IDs with collection items to get names and metadata
 5. **Duplicate Detection**: Tracks items that have already been curated to identify duplicates
 6. **Fee Calculation**: For each curation, calculates `creationFee ÷ 3` as curator payment (only for first curation per item)
@@ -120,9 +120,10 @@ The production URL will be `https://dao-council.pages.dev`.
 
 ### Fee Calculation Logic
 
-- Each curation represents one item being reviewed by a curator
-- Curator fee = `creationFee ÷ 3` (curator gets 1/3 of the creation fee)
-- **Duplicate Curation Handling**: Only the first curation of an item generates fees. Subsequent curations of the same item (edits/updates) show 0 fees and are excluded from payment calculations
+- Each payable curation represents the first review of one published item
+- Curator fee = the matched item's `creationFee ÷ 3` (curator gets 1/3 of that publication fee)
+- **Duplicate Curation Handling**: Only the first curation of an item generates fees. The backend checks curation history from the collection cutoff through the report end date, so later edit/update approvals are not paid again even if the original curation happened before the selected report range.
+- If a historical Polygon receipt cannot be loaded, later curations in the same collection are excluded from payable totals and the UI shows a warning. This avoids overpaying when public RPC data is incomplete.
 - Amounts are converted from wei (BigNumber) to MANA for display
 - Safe transaction creation converts curator totals back to wei and creates one Ethereum mainnet MANA ERC20 `transfer` call per curator
 
@@ -164,7 +165,9 @@ The app uses Polygon transaction receipts to recover item IDs for curation rows.
 POLYGON_RPC_URL=https://your-polygon-rpc.example
 ```
 
-Locally, Wrangler can read the same variable from your shell or `.dev.vars` file. If `POLYGON_RPC_URL` is not set, the app falls back to the public RPC endpoints. `POLYGON_RPC_ENDPOINT` is also accepted as a backwards-compatible alias.
+Locally, `npm run dev` passes `.env` to Wrangler, so put the variable there or copy `.env.example` to `.env`. If `POLYGON_RPC_URL` is not set, the app falls back to the public RPC endpoints. `POLYGON_RPC_ENDPOINT` is also accepted as a backwards-compatible alias.
+
+Receipt lookups are batched through JSON-RPC because item IDs have to be recovered from transaction receipts. `POLYGON_RPC_BATCH_SIZE` defaults to `10`; lower it if your provider rate-limits batched requests, or raise it if your provider supports larger batches. Failed internal-error batches are retried in smaller chunks. `POLYGON_RPC_BATCH_DELAY_MS` defaults to `0`.
 
 ### Curator Data
 

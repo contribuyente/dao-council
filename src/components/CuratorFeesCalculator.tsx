@@ -11,6 +11,7 @@ type CurationsApiResponse = {
   data: {
     fees: CuratorFeesSummary[];
   };
+  warnings?: string[];
 };
 
 export function CuratorFeesCalculator({
@@ -20,6 +21,7 @@ export function CuratorFeesCalculator({
 }: CuratorFeesCalculatorProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [warnings, setWarnings] = useState<string[]>([]);
 
   useEffect(() => {
     const abortController = new AbortController();
@@ -28,6 +30,7 @@ export function CuratorFeesCalculator({
       setLoading(true);
       onLoadingChange(true);
       setError(null);
+      setWarnings([]);
 
       try {
         const params = new URLSearchParams({
@@ -48,6 +51,7 @@ export function CuratorFeesCalculator({
         }
 
         const payload = (await response.json()) as CurationsApiResponse;
+        setWarnings(payload.warnings ?? []);
         onFeesCalculated(payload.data.fees);
       } catch (err) {
         if (abortController.signal.aborted) {
@@ -57,6 +61,7 @@ export function CuratorFeesCalculator({
         const errorMessage =
           err instanceof Error ? err.message : 'Failed to fetch curation data';
         setError(errorMessage);
+        setWarnings([]);
         onFeesCalculated([]);
       } finally {
         if (!abortController.signal.aborted) {
@@ -86,6 +91,16 @@ export function CuratorFeesCalculator({
       <div className="error">
         <p>Error: {error}</p>
         <button onClick={() => window.location.reload()}>Retry</button>
+      </div>
+    );
+  }
+
+  if (warnings.length > 0) {
+    return (
+      <div className="curations-warning" role="status">
+        {warnings.map((warning) => (
+          <p key={warning}>{warning}</p>
+        ))}
       </div>
     );
   }

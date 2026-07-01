@@ -429,6 +429,22 @@ body {
   opacity: 0.8;
 }
 
+.curations-warning {
+  width: 100%;
+  max-width: 800px;
+  margin: 1rem 0;
+  padding: 1rem 1.25rem;
+  border: 1px solid #f4c542;
+  border-radius: 8px;
+  background: rgba(244, 197, 66, 0.12);
+  color: #f4c542;
+  font-weight: 500;
+}
+
+.curations-warning p {
+  margin: 0;
+}
+
 .no-data {
   text-align: center;
   padding: 3rem;

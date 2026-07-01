@@ -12,11 +12,13 @@ export async function fetchAllCurationsFromSubgraph({
   endpoint = DECENTRALAND_COLLECTIONS_SUBGRAPH,
   fromTimestamp,
   toTimestamp,
+  collectionIds,
 }: {
   fetcher: Fetcher;
   endpoint?: string;
   fromTimestamp: number;
   toTimestamp: number;
+  collectionIds?: string[];
 }): Promise<CurationsResponse> {
   let allCurations: Curation[] = [];
   let skip = 0;
@@ -27,6 +29,7 @@ export async function fetchAllCurationsFromSubgraph({
       endpoint,
       fromTimestamp,
       toTimestamp,
+      collectionIds,
       skip,
     });
     const curations = response.data.curations;
@@ -56,12 +59,14 @@ async function fetchCurationsPage({
   endpoint,
   fromTimestamp,
   toTimestamp,
+  collectionIds,
   skip,
 }: {
   fetcher: Fetcher;
   endpoint: string;
   fromTimestamp: number;
   toTimestamp: number;
+  collectionIds?: string[];
   skip: number;
 }): Promise<CurationsResponse> {
   const response = await fetcher(endpoint, {
@@ -71,7 +76,12 @@ async function fetchCurationsPage({
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      query: buildCurationsQuery({ fromTimestamp, toTimestamp, skip }),
+      query: buildCurationsQuery({
+        fromTimestamp,
+        toTimestamp,
+        collectionIds,
+        skip,
+      }),
       variables: null,
     }),
   });
@@ -86,12 +96,27 @@ async function fetchCurationsPage({
 function buildCurationsQuery({
   fromTimestamp,
   toTimestamp,
+  collectionIds,
   skip,
 }: {
   fromTimestamp: number;
   toTimestamp: number;
+  collectionIds?: string[];
   skip: number;
 }) {
+  const whereFilters = [
+    `timestamp_gte: ${fromTimestamp}`,
+    `timestamp_lte: ${toTimestamp}`,
+  ];
+
+  if (collectionIds && collectionIds.length > 0) {
+    whereFilters.push(
+      `collection_in: ${JSON.stringify(
+        Array.from(new Set(collectionIds.map((id) => id.toLowerCase())))
+      )}`
+    );
+  }
+
   return `
     {
       curations(
@@ -100,8 +125,7 @@ function buildCurationsQuery({
         skip: ${skip},
         first: ${CURATIONS_PAGE_SIZE},
         where: {
-          timestamp_gte: ${fromTimestamp},
-          timestamp_lte: ${toTimestamp}
+          ${whereFilters.join(',\n          ')}
         }
       ) {
         timestamp
@@ -114,7 +138,7 @@ function buildCurationsQuery({
           createdAt
           itemsCount
           name
-          items {
+          items(first: 1000) {
             blockchainId
             creationFee
             metadata {

@@ -1,7 +1,13 @@
 import { curatorData } from './curatorData';
 import type { Curation, CurationDetail, CuratorFeesSummary } from './types';
 
-const CURATION_COLLECTION_CREATED_AT_CUTOFF = 1658153853;
+export const CURATION_COLLECTION_CREATED_AT_CUTOFF = 1658153853;
+
+export type ProcessCurationsOptions = {
+  reportFromTimestamp?: number;
+  reportToTimestamp?: number;
+  unresolvedCurationKeys?: ReadonlySet<string>;
+};
 
 export function getUniqueCurationTxHashes(curations: Curation[]): `0x${string}`[] {
   const txHashes = new Set<`0x${string}`>();
@@ -15,12 +21,14 @@ export function getUniqueCurationTxHashes(curations: Curation[]): `0x${string}`[
 
 export function processCurations(
   curations: Curation[],
-  itemIdMap: Map<string, Map<string, string[]>>
+  itemIdMap: Map<string, Map<string, string[]>>,
+  options: ProcessCurationsOptions = {}
 ): CuratorFeesSummary[] {
   const curatorFees = new Map<string, CuratorFeesSummary>();
   const sortedCurations = getEligibleCurations(curations);
   const itemIdQueues = buildItemIdQueues(itemIdMap);
   const curatedItems = new Set<string>();
+  const blockedCollections = new Set<string>();
 
   sortedCurations.forEach((curation) => {
     const curatorId = curation.curator.id.toLowerCase();
@@ -29,31 +37,34 @@ export function processCurations(
       paymentAddress: curatorId,
     };
 
-    let curationFee = 0;
-    let creationFeeAmount = 0;
-
-    if (curation.collection.items && curation.collection.items.length > 0) {
-      const creationFee = curation.collection.items[0].creationFee;
-
-      if (creationFee && creationFee !== '0') {
-        creationFeeAmount = convertBigNumberToEther(creationFee);
-        curationFee = creationFeeAmount / 3;
-      }
-    }
-
     const txHash = curation.txHash.toLowerCase();
     const collectionId = curation.collection.id.toLowerCase();
+    const curationKey = getCurationCollectionKey(curation);
+
+    if (options.unresolvedCurationKeys?.has(curationKey)) {
+      blockedCollections.add(collectionId);
+    }
+
     const itemId = getNextItemId(itemIdQueues, txHash, collectionId);
     const itemName = getItemName(curation, itemId);
     const itemKey = itemId ? `${collectionId}-${itemId}` : null;
-    const isFirstCuration = itemKey ? !curatedItems.has(itemKey) : true;
+    const isFirstPublicationCuration = itemKey
+      ? !curatedItems.has(itemKey)
+      : false;
 
-    if (!isFirstCuration && itemKey) {
-      curationFee = 0;
-      creationFeeAmount = 0;
-    } else if (itemKey) {
+    if (itemKey) {
       curatedItems.add(itemKey);
     }
+
+    if (!isWithinReportRange(curation, options)) {
+      return;
+    }
+
+    const canPayCuration =
+      isFirstPublicationCuration && !blockedCollections.has(collectionId);
+    const { creationFeeAmount, curationFee } = canPayCuration
+      ? calculateCurationFee(curation, itemId)
+      : { creationFeeAmount: 0, curationFee: 0 };
 
     const curationDetail: CurationDetail = {
       timestamp: curation.timestamp,
@@ -70,9 +81,9 @@ export function processCurations(
     if (existing) {
       if (curationFee > 0) {
         existing.totalFees += curationFee;
-        existing.curationCount += 1;
       }
 
+      existing.curationCount += 1;
       existing.curations.push(curationDetail);
     } else {
       curatorFees.set(curatorId, {
@@ -80,15 +91,24 @@ export function processCurations(
         curatorName: curatorInfo.name,
         paymentAddress: curatorInfo.paymentAddress,
         totalFees: curationFee > 0 ? curationFee : 0,
-        curationCount: curationFee > 0 ? 1 : 0,
+        curationCount: 1,
         curations: [curationDetail],
       });
     }
   });
 
   return Array.from(curatorFees.values())
-    .filter((summary) => summary.totalFees > 0)
-    .sort((a, b) => b.totalFees - a.totalFees);
+    .sort((a, b) => {
+      if (b.totalFees !== a.totalFees) {
+        return b.totalFees - a.totalFees;
+      }
+
+      return b.curationCount - a.curationCount;
+    });
+}
+
+export function getCurationCollectionKey(curation: Curation) {
+  return `${curation.txHash.toLowerCase()}-${curation.collection.id.toLowerCase()}`;
 }
 
 function getEligibleCurations(curations: Curation[]) {
@@ -98,6 +118,43 @@ function getEligibleCurations(curations: Curation[]) {
       const createdAt = parseInt(curation.collection.createdAt);
       return createdAt > CURATION_COLLECTION_CREATED_AT_CUTOFF;
     });
+}
+
+function isWithinReportRange(
+  curation: Curation,
+  { reportFromTimestamp, reportToTimestamp }: ProcessCurationsOptions
+) {
+  const timestamp = Number(curation.timestamp);
+
+  if (reportFromTimestamp !== undefined && timestamp < reportFromTimestamp) {
+    return false;
+  }
+
+  if (reportToTimestamp !== undefined && timestamp > reportToTimestamp) {
+    return false;
+  }
+
+  return true;
+}
+
+function calculateCurationFee(curation: Curation, itemId: string | null) {
+  let creationFeeAmount = 0;
+  let curationFee = 0;
+  const item = getCurationItem(curation, itemId);
+
+  if (item) {
+    const creationFee = item.creationFee;
+
+    if (creationFee && creationFee !== '0') {
+      creationFeeAmount = convertBigNumberToEther(creationFee);
+      curationFee = creationFeeAmount / 3;
+    }
+  }
+
+  return {
+    creationFeeAmount,
+    curationFee,
+  };
 }
 
 function buildItemIdQueues(itemIdMap: Map<string, Map<string, string[]>>) {
@@ -122,17 +179,22 @@ function getNextItemId(
 }
 
 function getItemName(curation: Curation, itemId: string | null) {
-  if (!itemId || !curation.collection.items) {
-    return null;
-  }
-
-  const matchingItem = curation.collection.items.find(
-    (item) => item.blockchainId === itemId
-  );
+  const matchingItem = getCurationItem(curation, itemId);
 
   return (
     matchingItem?.metadata?.wearable?.name ||
     matchingItem?.metadata?.emote?.name ||
+    null
+  );
+}
+
+function getCurationItem(curation: Curation, itemId: string | null) {
+  if (!itemId || !curation.collection.items) {
+    return null;
+  }
+
+  return (
+    curation.collection.items.find((item) => item.blockchainId === itemId) ||
     null
   );
 }

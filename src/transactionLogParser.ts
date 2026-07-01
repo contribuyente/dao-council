@@ -4,6 +4,26 @@ export type TransactionReceiptLog = {
   data?: string;
 };
 
+export type TransactionReceiptFetchFailure = {
+  txHash: `0x${string}`;
+  message: string;
+};
+
+export type ExtractItemIdsFromTxsResult = {
+  itemIdMap: Map<string, Map<string, string[]>>;
+  failures: TransactionReceiptFetchFailure[];
+};
+
+export type TransactionReceiptLogsBatch = {
+  logsByTxHash: Map<`0x${string}`, TransactionReceiptLog[]>;
+  failures?: TransactionReceiptFetchFailure[];
+};
+
+export type ExtractItemIdsFromTxsOptions = {
+  batchSize?: number;
+  batchDelayMs?: number;
+};
+
 const TRANSFER_EVENT_SIGNATURE =
   '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
 const CURATION_EVENT_SIGNATURE =
@@ -39,34 +59,60 @@ export function extractItemIdsFromReceiptLogs(
 
 export async function extractItemIdsFromTxs(
   txHashes: `0x${string}`[],
-  fetchReceiptLogs: (txHash: `0x${string}`) => Promise<TransactionReceiptLog[]>
-): Promise<Map<string, Map<string, string[]>>> {
-  const result = new Map<string, Map<string, string[]>>();
-  const batchSize = 10;
+  fetchReceiptLogsBatch: (
+    txHashes: `0x${string}`[]
+  ) => Promise<TransactionReceiptLogsBatch>,
+  { batchSize = 50, batchDelayMs = 0 }: ExtractItemIdsFromTxsOptions = {}
+): Promise<ExtractItemIdsFromTxsResult> {
+  const itemIdMap = new Map<string, Map<string, string[]>>();
+  const failures: TransactionReceiptFetchFailure[] = [];
 
   for (let i = 0; i < txHashes.length; i += batchSize) {
     const batch = txHashes.slice(i, i + batchSize);
-    const batchResults = await Promise.all(
-      batch.map(async (txHash) => {
-        try {
-          const logs = await fetchReceiptLogs(txHash);
-          return { txHash, itemMap: extractItemIdsFromReceiptLogs(logs) };
-        } catch {
-          return { txHash, itemMap: new Map<string, string[]>() };
+    const failedTxHashes = new Set<string>();
+
+    try {
+      const { logsByTxHash, failures: batchFailures = [] } =
+        await fetchReceiptLogsBatch(batch);
+
+      batchFailures.forEach((failure) => {
+        failedTxHashes.add(failure.txHash.toLowerCase());
+        failures.push(failure);
+      });
+
+      batch.forEach((txHash) => {
+        const logs = logsByTxHash.get(txHash);
+
+        if (!logs) {
+          if (!failedTxHashes.has(txHash.toLowerCase())) {
+            failures.push({
+              txHash,
+              message: `Polygon receipt not found for ${txHash}`,
+            });
+          }
+          return;
         }
-      })
-    );
 
-    batchResults.forEach(({ txHash, itemMap }) => {
-      result.set(txHash, itemMap);
-    });
+        itemIdMap.set(txHash, extractItemIdsFromReceiptLogs(logs));
+      });
+    } catch (error) {
+      batch.forEach((txHash) => {
+        failures.push({
+          txHash,
+          message: error instanceof Error ? error.message : 'Unknown RPC error',
+        });
+      });
+    }
 
-    if (i + batchSize < txHashes.length) {
-      await new Promise((resolve) => setTimeout(resolve, 100));
+    if (batchDelayMs > 0 && i + batchSize < txHashes.length) {
+      await new Promise((resolve) => setTimeout(resolve, batchDelayMs));
     }
   }
 
-  return result;
+  return {
+    itemIdMap,
+    failures,
+  };
 }
 
 function extractCurationEventItemId(log: TransactionReceiptLog) {

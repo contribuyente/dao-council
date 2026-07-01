@@ -7,10 +7,10 @@
     "node": ">=20.19.0"
   },
   "scripts": {
-    "dev": "vite build --mode development && wrangler pages dev --port 5173",
+    "dev": "vite build --mode development && wrangler pages dev --env-file .env --port 5173 --ip 0.0.0.0",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "npm run build && wrangler pages dev --port 4173",
+    "preview": "npm run build && wrangler pages dev --env-file .env --port 4173",
     "deploy": "npm run build && wrangler pages deploy"
   },
   "dependencies": {
