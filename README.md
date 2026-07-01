@@ -215,3 +215,5 @@ If the app is opened outside Safe, the payment action becomes "Copy CSV" and cop
 5. Click "Create Transaction" inside Safe, or "Copy CSV" outside Safe
 
 The Council tab calculates `stipend USD ÷ MANA/USD price` for each member and creates one Ethereum mainnet MANA transfer per Council member.
+
+.
