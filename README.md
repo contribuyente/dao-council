@@ -63,6 +63,8 @@ npm run dev
 
 `npm run dev` builds the React app and runs it with the Pages Function API locally. The browser calls the same-origin `/api/curations` endpoint for processed curator fee data, and `/api/graphql` remains available as a raw Decentraland subgraph proxy. This replaces the old `corsproxy.io` workaround.
 
+The app routes are `/curators` and `/council`. The curator report range is shareable through date query params, for example `/curators?from=2026-06-01&to=2026-06-30`.
+
 ### Building for Production
 
 ```bash

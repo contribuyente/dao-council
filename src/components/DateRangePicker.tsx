@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { startOfMonth, endOfMonth, format } from 'date-fns';
 import { DateRange, RangeType } from '../types';
 
@@ -15,13 +14,9 @@ export function DateRangePicker({
   rangeType, 
   onRangeTypeChange 
 }: DateRangePickerProps) {
-  const [selectedMonth, setSelectedMonth] = useState(() => {
-    const currentDate = new Date();
-    return format(currentDate, 'yyyy-MM');
-  });
+  const selectedMonth = format(dateRange.from, 'yyyy-MM');
 
   const handleMonthChange = (monthValue: string) => {
-    setSelectedMonth(monthValue);
     const [year, month] = monthValue.split('-').map(Number);
     const date = new Date(year, month - 1, 1);
     const now = new Date();
