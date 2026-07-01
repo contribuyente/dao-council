@@ -14,7 +14,6 @@ interface CuratorFeesReportProps extends SafeConnection {
 
 export function CuratorFeesReport({
   fees,
-  dateRange,
   isLoading,
   safeInfo,
   safeAppStatus,
@@ -34,10 +33,6 @@ export function CuratorFeesReport({
       })),
     [fees]
   );
-  const safeTxNote = useMemo(
-    () => `Pay curation committee fees from ${formatDateRangeForNote(dateRange)}`,
-    [dateRange]
-  );
   const {
     safeTxHash,
     safeTxError,
@@ -47,7 +42,6 @@ export function CuratorFeesReport({
   } = useSafePaymentAction(payments, {
     safeInfo,
     safeAppStatus,
-    txNote: safeTxNote,
   });
 
   const formatMANA = (amount: number) => {
@@ -313,11 +307,4 @@ export function CuratorFeesReport({
       </div>
     </div>
   );
-}
-
-function formatDateRangeForNote(dateRange: DateRange) {
-  const includeYear = dateRange.from.getFullYear() !== dateRange.to.getFullYear();
-  const dateFormat = includeYear ? 'MMMM do, yyyy' : 'MMMM do';
-
-  return `${format(dateRange.from, dateFormat)} to ${format(dateRange.to, dateFormat)}`;
 }

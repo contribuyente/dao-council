@@ -12,7 +12,6 @@ import { useSafePaymentAction } from '../useSafePaymentAction';
 import type { SafeConnection } from '../useSafeConnection';
 
 const DEFAULT_STIPEND_USD = '1000';
-const SAFE_TX_NOTE = 'Council monthly stipend';
 
 type ManaPrice = {
   usd: number;
@@ -60,7 +59,6 @@ export function CouncilStipends({ safeInfo, safeAppStatus }: SafeConnection) {
   } = useSafePaymentAction(payments, {
     safeInfo,
     safeAppStatus,
-    txNote: SAFE_TX_NOTE,
   });
 
   const loadManaPrice = useCallback(async () => {

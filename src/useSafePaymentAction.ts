@@ -12,28 +12,9 @@ import {
   type SafeConnection,
 } from './useSafeConnection';
 
-type SafePaymentActionOptions = SafeConnection & {
-  txNote?: string;
-};
-
-type SafeTransactionRequestParamsWithOrigin = {
-  safeTxGas?: number;
-  origin?: string;
-};
-
-type SafeTransactionsSenderWithOrigin = {
-  send({
-    txs,
-    params,
-  }: {
-    txs: ReturnType<typeof buildSafeTransactions>;
-    params?: SafeTransactionRequestParamsWithOrigin;
-  }): Promise<{ safeTxHash: string }>;
-};
-
 export function useSafePaymentAction(
   payments: PaymentRecipient[],
-  { safeInfo, safeAppStatus, txNote }: SafePaymentActionOptions
+  { safeInfo, safeAppStatus }: SafeConnection
 ) {
   const [isCreatingSafeTx, setIsCreatingSafeTx] = useState(false);
   const [safeTxHash, setSafeTxHash] = useState<string | null>(null);
@@ -91,10 +72,8 @@ export function useSafePaymentAction(
         throw new Error('Connect to Safe as an owner to create this transaction.');
       }
 
-      const txs = buildSafeTransactions(payments);
-      const response = await (sdk.txs as SafeTransactionsSenderWithOrigin).send({
-        txs,
-        ...(txNote ? { params: { origin: txNote } } : {}),
+      const response = await sdk.txs.send({
+        txs: buildSafeTransactions(payments),
       });
 
       setSafeTxHash(response.safeTxHash);
