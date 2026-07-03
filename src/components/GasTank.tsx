@@ -32,8 +32,8 @@ export function GasTank({ safeInfo, safeAppStatus }: SafeConnection) {
   const isSafeApp = safeAppStatus === 'connected' && Boolean(safeInfo);
   const refillSafeAddress = safeInfo?.safeAddress ?? DEFAULT_REFILL_SAFE_ADDRESS;
   const refillUrl = useMemo(
-    () => buildRefillUrl(refillSafeAddress, isSafeApp),
-    [isSafeApp, refillSafeAddress]
+    () => buildSafeAppRefillUrl(refillSafeAddress),
+    [refillSafeAddress]
   );
   const balanceLabel =
     balanceWei === null
@@ -78,7 +78,7 @@ export function GasTank({ safeInfo, safeAppStatus }: SafeConnection) {
   }, []);
 
   const handleRefill = () => {
-    window.location.assign(refillUrl);
+    openRefillUrl(refillUrl, isSafeApp);
   };
 
   const isCheckingSafe = safeAppStatus === 'checking';
@@ -147,19 +147,38 @@ export function GasTank({ safeInfo, safeAppStatus }: SafeConnection) {
   );
 }
 
-function buildRefillUrl(safeAddress: string, isSafeApp: boolean) {
-  const cowUrl =
+function buildCowSwapRefillUrl() {
+  return (
     `https://swap.cow.fi/#/${ETHEREUM_CHAIN_ID}/swap/${MANA_TOKEN_ADDRESS}/${NATIVE_POL_ADDRESS}` +
-    `?recipient=${GAS_TANK_EOA}&sellAmount=${DEFAULT_SELL_AMOUNT}&targetChainId=${POLYGON_CHAIN_ID}`;
+    `?recipient=${GAS_TANK_EOA}&sellAmount=${DEFAULT_SELL_AMOUNT}&targetChainId=${POLYGON_CHAIN_ID}`
+  );
+}
 
-  if (isSafeApp) {
-    return cowUrl;
-  }
+function buildSafeAppRefillUrl(safeAddress: string) {
+  const cowUrl = buildCowSwapRefillUrl();
 
   return `https://app.safe.global/apps/open?${new URLSearchParams({
     safe: `eth:${safeAddress}`,
     appUrl: cowUrl,
   }).toString()}`;
+}
+
+function openRefillUrl(refillUrl: string, isSafeApp: boolean) {
+  if (!isSafeApp) {
+    window.location.assign(refillUrl);
+    return;
+  }
+
+  try {
+    if (window.top && window.top !== window) {
+      window.top.location.href = refillUrl;
+      return;
+    }
+  } catch {
+    // Safe may sandbox top navigation. Fall back to a new top-level tab.
+  }
+
+  window.open(refillUrl, '_blank', 'noopener,noreferrer');
 }
 
 async function fetchGasTankBalance() {
