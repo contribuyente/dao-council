@@ -937,6 +937,12 @@ body {
     text-align: center;
   }
 
+  .gas-balance-card {
+    width: 100%;
+    justify-content: space-between;
+    text-align: left;
+  }
+
   .gas-tank-summary {
     align-items: center;
   }
