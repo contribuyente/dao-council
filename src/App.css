@@ -628,18 +628,6 @@ body {
   color: var(--secondary-text);
 }
 
-.token-note {
-  flex: 0 0 auto;
-  padding: 0.6rem 0.75rem;
-  border-radius: 8px;
-  border: 1px solid var(--secondary-on-modal);
-  background: var(--card-on-modal);
-  color: var(--secondary-text);
-  font-size: 0.8rem;
-  line-height: 1.4;
-  text-align: right;
-}
-
 .council-controls {
   display: grid;
   grid-template-columns: minmax(220px, 1fr) minmax(280px, 1.4fr);
@@ -809,6 +797,118 @@ body {
   font-size: 0.875rem;
 }
 
+.gas-tank {
+  width: 100%;
+  max-width: 900px;
+}
+
+.gas-tank-panel {
+  width: 100%;
+}
+
+.gas-tank-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  align-items: center;
+}
+
+.gas-balance-card {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 1rem;
+  flex: 0 0 auto;
+  width: fit-content;
+  padding: 1rem;
+  border: 1px solid var(--secondary-on-modal);
+  border-radius: 8px;
+  background: var(--card-on-modal);
+  text-align: right;
+}
+
+.gas-balance-card.low-balance {
+  border-color: rgba(255, 169, 0, 0.45);
+}
+
+.gas-balance-card.error {
+  border-color: rgba(255, 0, 0, 0.35);
+}
+
+.gas-balance-value {
+  display: block;
+  color: var(--text);
+  font-size: 1.75rem;
+  line-height: 1.2;
+}
+
+.gas-balance-card .copy-button {
+  flex: 0 0 auto;
+}
+
+.gas-tank-error {
+  margin: -0.75rem 0 1rem;
+  text-align: left;
+}
+
+.gas-tank-summary {
+  align-items: stretch;
+  margin-bottom: 0;
+  background: var(--background);
+}
+
+.gas-tank-stats {
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+}
+
+.gas-tank-stats .stat {
+  min-width: 180px;
+}
+
+.mono-value {
+  font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
+.address-with-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.open-address-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 1px solid var(--secondary-on-modal);
+  border-radius: 6px;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.open-address-link:hover {
+  background: var(--secondary-on-modal-hover);
+}
+
+@media (max-width: 960px) {
+  .gas-tank-header {
+    grid-template-columns: 1fr;
+  }
+
+  .gas-balance-card {
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    text-align: left;
+  }
+}
+
 @media (max-width: 768px) {
   .council-panel {
     padding: 1.25rem;
@@ -816,11 +916,6 @@ body {
 
   .council-panel-header {
     flex-direction: column;
-  }
-
-  .token-note {
-    width: 100%;
-    text-align: left;
   }
 
   .council-controls {
@@ -840,6 +935,14 @@ body {
 
   .safe-tx-message {
     text-align: center;
+  }
+
+  .gas-tank-summary {
+    align-items: center;
+  }
+
+  .gas-tank-stats {
+    width: 100%;
   }
 
   .council-table {

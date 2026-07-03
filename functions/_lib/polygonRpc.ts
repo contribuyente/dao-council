@@ -40,6 +40,8 @@ const DEFAULT_POLYGON_RPC_URLS = [
   'https://polygon-bor-rpc.publicnode.com',
   'https://polygon.llamarpc.com',
 ];
+const DEFAULT_POLYGON_RPC_CACHE_CONTROL =
+  's-maxage=86400, stale-while-revalidate=604800';
 
 export function getPolygonRpcUrls(env: PolygonRpcEnv = {}) {
   const configuredUrls = [
@@ -52,7 +54,10 @@ export function getPolygonRpcUrls(env: PolygonRpcEnv = {}) {
 
 export async function fetchPolygonRpc(
   body: string,
-  env: PolygonRpcEnv = {}
+  env: PolygonRpcEnv = {},
+  {
+    cacheControl = DEFAULT_POLYGON_RPC_CACHE_CONTROL,
+  }: { cacheControl?: string } = {}
 ) {
   const upstreamResponse = await requestPolygonRpc(body, env);
 
@@ -60,7 +65,7 @@ export async function fetchPolygonRpc(
     status: 200,
     headers: {
       'Content-Type': 'application/json',
-      'Cache-Control': 's-maxage=86400, stale-while-revalidate=604800',
+      'Cache-Control': cacheControl,
     },
   });
 }

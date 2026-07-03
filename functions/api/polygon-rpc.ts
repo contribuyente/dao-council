@@ -6,6 +6,7 @@ import {
 
 const ALLOWED_METHODS = new Set([
   'eth_chainId',
+  'eth_getBalance',
   'eth_getTransactionReceipt',
 ]);
 
@@ -36,7 +37,11 @@ export const onRequestPost: PagesFunction<PolygonRpcEnv> = async ({
   }
 
   try {
-    return await fetchPolygonRpc(body, env);
+    return await fetchPolygonRpc(body, env, {
+      cacheControl: hasMethod(payload, 'eth_getBalance')
+        ? 'no-store'
+        : undefined,
+    });
   } catch (error) {
     return Response.json(
       {
@@ -74,7 +79,23 @@ function isAllowedPayload(payload: JsonRpcRequest | JsonRpcRequest[]) {
         return typeof txHash === 'string' && /^0x[0-9a-fA-F]{64}$/.test(txHash);
       }
 
+      if (request.method === 'eth_getBalance') {
+        const address = request.params?.[0];
+        const blockTag = request.params?.[1] ?? 'latest';
+
+        return (
+          typeof address === 'string' &&
+          /^0x[0-9a-fA-F]{40}$/.test(address) &&
+          blockTag === 'latest'
+        );
+      }
+
       return true;
     })
   );
+}
+
+function hasMethod(payload: JsonRpcRequest | JsonRpcRequest[], method: string) {
+  const requests = Array.isArray(payload) ? payload : [payload];
+  return requests.some((request) => request.method === method);
 }

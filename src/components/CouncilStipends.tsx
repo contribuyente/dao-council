@@ -2,9 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { isAddress } from 'viem';
 import { councilMembers } from '../councilMembers';
 import {
-  MANA_TOKEN_ADDRESS,
   formatManaAmount,
-  shortAddress,
   type PaymentRecipient,
 } from '../payments';
 import { PaymentActionStatus } from '../PaymentActionStatus';
@@ -150,9 +148,6 @@ export function CouncilStipends({ safeInfo, safeAppStatus }: SafeConnection) {
             <p>
               Create monthly Ethereum MANA payments for DAO Council members.
             </p>
-          </div>
-          <div className="token-note">
-            MANA token: Ethereum mainnet {shortAddress(MANA_TOKEN_ADDRESS)}
           </div>
         </div>
 

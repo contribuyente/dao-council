@@ -5,12 +5,13 @@ import { CouncilStipends } from './components/CouncilStipends'
 import { DateRangePicker } from './components/DateRangePicker'
 import { CuratorFeesCalculator } from './components/CuratorFeesCalculator'
 import { CuratorFeesReport } from './components/CuratorFeesReport'
+import { GasTank } from './components/GasTank'
 import { SafeConnectionStatus } from './SafeConnectionStatus'
 import { DateRange, CuratorFeesSummary, RangeType } from './types'
 import { useSafeConnection } from './useSafeConnection'
 import './App.css'
 
-type AppTab = 'curators' | 'council';
+type AppTab = 'curators' | 'council' | 'gasTank';
 
 type AppRouteState = {
   activeTab: AppTab;
@@ -21,6 +22,7 @@ type AppRouteState = {
 const APP_ROUTES: Record<AppTab, string> = {
   curators: '/curators',
   council: '/council',
+  gasTank: '/gas-tank',
 };
 
 function App() {
@@ -108,6 +110,12 @@ function App() {
             >
               Council
             </Tabs.Tab>
+            <Tabs.Tab
+              active={activeTab === 'gasTank'}
+              onClick={() => handleTabChange('gasTank')}
+            >
+              Gas Tank
+            </Tabs.Tab>
           </Tabs>
         </nav>
       </header>
@@ -135,8 +143,10 @@ function App() {
               {...safeConnection}
             />
           </>
-        ) : (
+        ) : activeTab === 'council' ? (
           <CouncilStipends {...safeConnection} />
+        ) : (
+          <GasTank {...safeConnection} />
         )}
       </main>
     </div>
@@ -156,7 +166,16 @@ function readRouteState(): AppRouteState {
 
 function getTabFromPath(pathname: string): AppTab {
   const normalizedPathname = pathname.replace(/\/+$/, '') || '/';
-  return normalizedPathname === APP_ROUTES.council ? 'council' : 'curators';
+
+  if (normalizedPathname === APP_ROUTES.council) {
+    return 'council';
+  }
+
+  if (normalizedPathname === APP_ROUTES.gasTank) {
+    return 'gasTank';
+  }
+
+  return 'curators';
 }
 
 function getDefaultDateRange(): DateRange {
