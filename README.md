@@ -221,6 +221,15 @@ curl -X POST "http://localhost:8787/run" \
   --data '{"dryRun":true,"notifyDiscord":false}'
 ```
 
+Temporary live smoke test payload. This ignores dry-run, creates a 1 MANA Safe proposal to the Safe itself, and sends `Test` plus the Safe transaction link to Discord:
+
+```bash
+curl -X POST "http://localhost:8787/run" \
+  -H "Authorization: Bearer $AUTOMATION_ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  --data '{"test":true}'
+```
+
 Local scheduled test:
 
 ```bash

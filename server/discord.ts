@@ -29,6 +29,25 @@ export async function postDiscordAutomationMessage(
   env: DiscordEnv,
   result: MonthlyAutomationResult
 ): Promise<DiscordPostResult> {
+  return postDiscordMessagePayload(env, buildDiscordMessagePayload(result));
+}
+
+export async function postDiscordTestMessage(
+  env: DiscordEnv,
+  safeTxUrl: string
+): Promise<DiscordPostResult> {
+  return postDiscordMessagePayload(env, {
+    content: `Test\n${safeTxUrl}`,
+    allowed_mentions: {
+      parse: [],
+    },
+  });
+}
+
+async function postDiscordMessagePayload(
+  env: DiscordEnv,
+  payload: DiscordMessagePayload
+): Promise<DiscordPostResult> {
   if (!env.DISCORD_BOT_TOKEN || !env.DISCORD_CHANNEL_ID) {
     return {
       status: 'skipped',
@@ -44,7 +63,7 @@ export async function postDiscordAutomationMessage(
         Authorization: `Bot ${env.DISCORD_BOT_TOKEN}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(buildDiscordMessagePayload(result)),
+      body: JSON.stringify(payload),
     }
   );
 

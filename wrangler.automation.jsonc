@@ -1,21 +1,27 @@
 {
-  "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "dao-council-automation",
-  "main": "worker/automation-worker.ts",
-  "compatibility_date": "2026-07-01",
-  "compatibility_flags": ["nodejs_compat"],
-  "triggers": {
-    "crons": ["0 15 1 * *"]
-  },
-  "kv_namespaces": [
-    {
-      "binding": "AUTOMATION_RUNS_KV",
-      "id": "replace-with-cloudflare-kv-namespace-id"
-    }
-  ],
-  "vars": {
-    "SAFE_CHAIN_ID": "1",
-    "COUNCIL_STIPEND_USD": "1000",
-    "AUTOMATION_DRY_RUN": "true"
-  }
+	"$schema": "./node_modules/wrangler/config-schema.json",
+	"name": "dao-council-automation",
+	"main": "worker/automation-worker.ts",
+	"compatibility_date": "2026-07-01",
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	"triggers": {
+		"crons": [
+			"0 15 1 * *"
+		]
+	},
+	"kv_namespaces": [
+		{
+			"binding": "AUTOMATION_RUNS_KV",
+			"id": "1b1af42dc86b4fd3a18729e8954d04d5"
+		}
+	],
+	"vars": {
+		"SAFE_CHAIN_ID": "1",
+		"COUNCIL_STIPEND_USD": "1000",
+		"AUTOMATION_DRY_RUN": "true",
+		"SAFE_ADDRESS": "0x184e4D9A26Add0aF1eAfC145550E890a421f16d7",
+  		"DISCORD_CHANNEL_ID": "your-channel-id",
+	}
 }

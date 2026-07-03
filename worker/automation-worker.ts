@@ -3,8 +3,15 @@ import {
   type AutomationEnv,
   type RunMonthlyAutomationOptions,
 } from '../server/automation';
+import { postDiscordTestMessage } from '../server/discord';
+import {
+  getSafeNextNonce,
+  proposeSafePaymentTransaction,
+} from '../server/safeProposals';
+import { getAddress, isAddress } from 'viem';
 
 type ManualRunRequest = {
+  test?: boolean;
   now?: string;
   force?: boolean;
   dryRun?: boolean;
@@ -47,6 +54,23 @@ async function handleManualRun(request: Request, env: AutomationEnv) {
   }
 
   const body = await parseManualRunRequest(request);
+
+  if (body.test === true) {
+    try {
+      return Response.json(await runManualSmokeTest(env));
+    } catch (error) {
+      return Response.json(
+        {
+          error:
+            error instanceof Error
+              ? error.message
+              : 'Manual smoke test failed.',
+        },
+        { status: 502 }
+      );
+    }
+  }
+
   const options: RunMonthlyAutomationOptions = {
     force: body.force === true,
   };
@@ -85,10 +109,53 @@ async function runScheduled(env: AutomationEnv) {
   }
 }
 
+async function runManualSmokeTest(env: AutomationEnv) {
+  const safeAddress = getSafeAddress(env);
+  const proposal = await proposeSafePaymentTransaction({
+    env,
+    payments: [
+      {
+        name: 'Safe self-test',
+        address: safeAddress,
+        amountMana: 1,
+      },
+    ],
+    nonce: await getSafeNextNonce(env),
+    origin: `dao-council:auto:test:${new Date().toISOString()}`,
+  });
+  let discord:
+    | Awaited<ReturnType<typeof postDiscordTestMessage>>
+    | { status: 'failed'; reason: string };
+
+  try {
+    discord = await postDiscordTestMessage(env, proposal.safeTxUrl);
+  } catch (error) {
+    discord = {
+      status: 'failed',
+      reason:
+        error instanceof Error ? error.message : 'Discord test message failed.',
+    };
+  }
+
+  return {
+    test: true,
+    safeTx: proposal,
+    discord,
+  };
+}
+
 async function parseManualRunRequest(request: Request): Promise<ManualRunRequest> {
   if (!request.headers.get('content-type')?.includes('application/json')) {
     return {};
   }
 
   return (await request.json().catch(() => ({}))) as ManualRunRequest;
+}
+
+function getSafeAddress(env: AutomationEnv) {
+  if (!env.SAFE_ADDRESS || !isAddress(env.SAFE_ADDRESS)) {
+    throw new Error('SAFE_ADDRESS must be configured for the smoke test.');
+  }
+
+  return getAddress(env.SAFE_ADDRESS);
 }
