@@ -1,4 +1,5 @@
 import { shortAddress } from './payments';
+import { buildSafeAppOpenUrl } from './safeAppLinks';
 import type { SafeConnection } from './useSafeConnection';
 
 export function SafeConnectionStatus({
@@ -23,10 +24,16 @@ export function SafeConnectionStatus({
     );
   }
 
+  const safeAppUrl = buildSafeAppOpenUrl(window.location.href);
+
   return (
-    <div className="safe-connection-status warning" aria-live="polite">
+    <a
+      href={safeAppUrl}
+      className="safe-connection-status warning safe-connection-link"
+      aria-live="polite"
+    >
       <span className="safe-status-dot" />
       Open from Safe Apps to create txs directly
-    </div>
+    </a>
   );
 }

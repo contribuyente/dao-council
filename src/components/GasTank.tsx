@@ -4,12 +4,12 @@ import {
   ETHEREUM_CHAIN_ID,
   MANA_TOKEN_ADDRESS,
 } from '../payments';
+import { buildSafeAppOpenUrl, COUNCIL_SAFE_ADDRESS } from '../safeAppLinks';
 import type { SafeConnection } from '../useSafeConnection';
 
 const POLYGON_CHAIN_ID = 137;
 const GAS_TANK_EOA = '0xd9030810ecb1db2d614fe0981369c87f41d4c419';
 const NATIVE_POL_ADDRESS = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE';
-const DEFAULT_REFILL_SAFE_ADDRESS = '0x184e4D9A26Add0aF1eAfC145550E890a421f16d7';
 const DEFAULT_SELL_AMOUNT = '10000';
 const GAS_TANK_POLYGONSCAN_URL = `https://polygonscan.com/address/${GAS_TANK_EOA}`;
 const LOW_BALANCE_THRESHOLD_WEI = 100n * 10n ** 18n;
@@ -30,7 +30,7 @@ export function GasTank({ safeInfo, safeAppStatus }: SafeConnection) {
   const [balanceError, setBalanceError] = useState<string | null>(null);
 
   const isSafeApp = safeAppStatus === 'connected' && Boolean(safeInfo);
-  const refillSafeAddress = safeInfo?.safeAddress ?? DEFAULT_REFILL_SAFE_ADDRESS;
+  const refillSafeAddress = safeInfo?.safeAddress ?? COUNCIL_SAFE_ADDRESS;
   const refillUrl = useMemo(
     () => buildSafeAppRefillUrl(refillSafeAddress),
     [refillSafeAddress]
@@ -157,10 +157,7 @@ function buildCowSwapRefillUrl() {
 function buildSafeAppRefillUrl(safeAddress: string) {
   const cowUrl = buildCowSwapRefillUrl();
 
-  return `https://app.safe.global/apps/open?${new URLSearchParams({
-    safe: `eth:${safeAddress}`,
-    appUrl: cowUrl,
-  }).toString()}`;
+  return buildSafeAppOpenUrl(cowUrl, safeAddress);
 }
 
 function openRefillUrl(refillUrl: string, isSafeApp: boolean) {
