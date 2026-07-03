@@ -8,6 +8,7 @@
 	],
 	"triggers": {
 		"crons": [
+			"0 14 * * *",
 			"0 15 1 * *"
 		]
 	},
@@ -20,8 +21,10 @@
 	"vars": {
 		"SAFE_CHAIN_ID": "1",
 		"COUNCIL_STIPEND_USD": "1000",
+		"GAS_TANK_LOW_POL_BALANCE": "1000",
+		"GAS_TANK_URGENT_POL_BALANCE": "100",
 		"AUTOMATION_DRY_RUN": "true",
 		"SAFE_ADDRESS": "0x184e4D9A26Add0aF1eAfC145550E890a421f16d7",
-  		"DISCORD_CHANNEL_ID": "your-channel-id",
+		"DISCORD_CHANNEL_ID": "your-channel-id"
 	}
 }

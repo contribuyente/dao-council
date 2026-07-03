@@ -89,6 +89,30 @@ export async function fetchTransactionReceipt(
   return { logs };
 }
 
+export async function fetchPolygonBalanceWei(
+  address: `0x${string}`,
+  env: PolygonRpcEnv = {}
+) {
+  const response = await requestPolygonRpc(
+    JSON.stringify({
+      jsonrpc: '2.0',
+      id: 'gas-tank-balance',
+      method: 'eth_getBalance',
+      params: [address, 'latest'],
+    }),
+    env
+  );
+  const payload = Array.isArray(response.payload)
+    ? response.payload[0]
+    : response.payload;
+
+  if (typeof payload?.result !== 'string' || !/^0x[0-9a-fA-F]+$/.test(payload.result)) {
+    throw new Error('Polygon balance response was invalid.');
+  }
+
+  return BigInt(payload.result);
+}
+
 export async function fetchTransactionReceiptLogs(
   txHashes: `0x${string}`[],
   env: PolygonRpcEnv = {}

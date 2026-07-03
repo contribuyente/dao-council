@@ -10,8 +10,9 @@ A web application for Decentraland DAO Council workflows. The Curators tab calcu
 - **Detailed Reports**: Expandable curator details showing individual curations with timestamps
 - **Council Stipends**: Calculate monthly Council member stipend payments from a USD amount and the live MANA/USD price
 - **Editable Payment Details**: Adjust Council stipend amounts and member payment addresses before creating a transaction
+- **Gas Tank Monitoring**: Track the Polygon Gas Tank balance and open a preconfigured CowSwap refill flow from Safe
 - **Multisig Integration**: Create a Safe transaction batch for payments, or copy a multisig CSV outside Safe
-- **Automation Worker**: Optionally propose monthly curator and council Safe transactions through a scheduled Cloudflare Worker and announce them in Discord
+- **Automation Worker**: Optionally propose monthly curator and council Safe transactions, plus daily low Gas Tank alerts, through Cloudflare Worker cron jobs and Discord
 - **Blockchain Links**: Direct links to Polygonscan transactions and Decentraland marketplace items
 - **Item ID Extraction**: Workaround for GraphQL bug by parsing transaction logs to extract item IDs
 - **Duplicate Curation Handling**: Automatically identifies and excludes duplicate curations from fee calculations
@@ -66,7 +67,7 @@ npm run dev
 
 `npm run dev` builds the React app, runs it with the Pages Function API locally, and starts the automation Worker. Use `npm run dev:web` or `npm run dev:automation` to run only one side. The browser calls the same-origin `/api/curations` endpoint for processed curator fee data, and `/api/graphql` remains available as a raw Decentraland subgraph proxy. This replaces the old `corsproxy.io` workaround.
 
-The app routes are `/curators` and `/council`. The curator report range is shareable through date query params, for example `/curators?from=2026-06-01&to=2026-06-30`.
+The app routes are `/curators`, `/council`, and `/gas-tank`. The curator report range is shareable through date query params, for example `/curators?from=2026-06-01&to=2026-06-30`.
 
 ### Building for Production
 
@@ -133,7 +134,7 @@ npm run deploy:automation
 
 ### Automation Worker Flow
 
-1. The Worker cron runs on the 1st day of each month at `15:00 UTC`
+1. The monthly payment cron runs on the 1st day of each month at `15:00 UTC`
 2. It calculates the previous UTC calendar month
 3. It calls the same shared curation report logic used by `/api/curations`
 4. It blocks curator automation if unresolved Polygon receipt warnings exist
@@ -141,6 +142,9 @@ npm run deploy:automation
 6. It creates separate Safe Transaction Service proposals for curators and council stipends
 7. It stores per-period status in `AUTOMATION_RUNS_KV` to avoid duplicate proposals
 8. It posts a summary with Safe links to Discord
+9. A separate daily cron runs at `14:00 UTC`, checks the Polygon Gas Tank POL balance, and posts Discord refill alerts using two configurable thresholds:
+   - Low alert: below `GAS_TANK_LOW_POL_BALANCE`, defaults to `1000` POL. This posts once and will not post again until the tank is refilled above the low threshold and later drops below it again.
+   - Urgent alert: below `GAS_TANK_URGENT_POL_BALANCE`, defaults to `100` POL. This posts every daily check while the balance remains urgent.
 
 ### Fee Calculation Logic
 
@@ -206,11 +210,15 @@ ETHEREUM_RPC_URL=https://eth-mainnet.g.alchemy.com/v2/...
 SAFE_ADDRESS=0x...
 SAFE_CHAIN_ID=1
 COUNCIL_STIPEND_USD=1000
+GAS_TANK_LOW_POL_BALANCE=1000
+GAS_TANK_URGENT_POL_BALANCE=100
 DISCORD_BOT_TOKEN=...
 DISCORD_CHANNEL_ID=...
 ```
 
 `AUTOMATION_DRY_RUN=true` computes payments and Discord text but does not create Safe proposals or write completed KV idempotency records. Keep it enabled for the first Cloudflare deployment.
+
+The daily Gas Tank cron checks the balance every day. `GAS_TANK_LOW_POL_BALANCE` defaults to `1000` POL and sends one “refill on next monthly sync” message per depletion cycle. The low alert state is stored in `AUTOMATION_RUNS_KV` and resets after the balance is refilled back above the low threshold. `GAS_TANK_URGENT_POL_BALANCE` defaults to `100` POL and sends an urgent message every day while the balance stays below that value. Both alerts include the same Safe App CowSwap refill link used by the **Gas Tank** tab's **Refill** button.
 
 Manual local run:
 
@@ -230,10 +238,25 @@ curl -X POST "http://localhost:8787/run" \
   --data '{"test":true}'
 ```
 
-Local scheduled test:
+Manual Gas Tank alert check:
+
+```bash
+curl -X POST "http://localhost:8787/run" \
+  -H "Authorization: Bearer $AUTOMATION_ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  --data '{"gasTank":true}'
+```
+
+Local monthly scheduled test:
 
 ```bash
 curl "http://localhost:8787/cdn-cgi/handler/scheduled?cron=0+15+1+*+*"
+```
+
+Local Gas Tank scheduled test:
+
+```bash
+curl "http://localhost:8787/cdn-cgi/handler/scheduled?cron=0+14+*+*+*"
 ```
 
 Cloudflare setup:
@@ -251,6 +274,8 @@ Cloudflare setup:
    - `SAFE_ADDRESS`
    - `DISCORD_CHANNEL_ID`
    - `COUNCIL_STIPEND_USD=1000`
+   - `GAS_TANK_LOW_POL_BALANCE=1000`
+   - `GAS_TANK_URGENT_POL_BALANCE=100`
    - `SAFE_CHAIN_ID=1`
    - `AUTOMATION_DRY_RUN=true` for the first deployment
 
@@ -282,10 +307,11 @@ The application includes a mapping of curator addresses to names and payment add
 
 ## Usage
 
-The app currently has two top-level tabs:
+The app currently has three top-level tabs:
 
 - **Curators**: Shows the curator fees report workflow.
 - **Council**: Shows monthly DAO Council stipend payments.
+- **Gas Tank**: Shows the Polygon Gas Tank POL balance and opens the Safe CowSwap refill flow.
 
 ### Generating Reports
 

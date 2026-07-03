@@ -14,7 +14,7 @@ import type {
 } from './automationTypes';
 
 export type AutomationEnv = PolygonRpcEnv & {
-  AUTOMATION_RUNS_KV?: Pick<KVNamespace, 'get' | 'put'>;
+  AUTOMATION_RUNS_KV?: Pick<KVNamespace, 'get' | 'put' | 'delete'>;
   AUTOMATION_PROPOSER_PRIVATE_KEY?: string;
   AUTOMATION_ADMIN_TOKEN?: string;
   AUTOMATION_DRY_RUN?: string;
@@ -25,6 +25,8 @@ export type AutomationEnv = PolygonRpcEnv & {
   DISCORD_BOT_TOKEN?: string;
   DISCORD_CHANNEL_ID?: string;
   COUNCIL_STIPEND_USD?: string;
+  GAS_TANK_LOW_POL_BALANCE?: string;
+  GAS_TANK_URGENT_POL_BALANCE?: string;
 };
 
 export type RunMonthlyAutomationOptions = {

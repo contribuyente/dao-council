@@ -4,5 +4,12 @@
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.worker.tsbuildinfo",
     "types": ["@cloudflare/workers-types/2023-07-01"]
   },
-  "include": ["worker", "server", "src/payments.ts", "src/councilMembers.ts"]
+  "include": [
+    "worker",
+    "server",
+    "src/payments.ts",
+    "src/councilMembers.ts",
+    "src/gasTank.ts",
+    "src/safeAppLinks.ts"
+  ]
 }

@@ -1,18 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
-import { formatEther } from 'viem';
+import { formatEther, parseEther } from 'viem';
 import {
-  ETHEREUM_CHAIN_ID,
-  MANA_TOKEN_ADDRESS,
-} from '../payments';
-import { buildSafeAppOpenUrl, COUNCIL_SAFE_ADDRESS } from '../safeAppLinks';
+  DEFAULT_GAS_TANK_LOW_POL_BALANCE,
+  GAS_TANK_EOA,
+  GAS_TANK_POLYGONSCAN_URL,
+  buildSafeAppRefillUrl,
+} from '../gasTank';
+import { COUNCIL_SAFE_ADDRESS } from '../safeAppLinks';
 import type { SafeConnection } from '../useSafeConnection';
 
-const POLYGON_CHAIN_ID = 137;
-const GAS_TANK_EOA = '0xd9030810ecb1db2d614fe0981369c87f41d4c419';
-const NATIVE_POL_ADDRESS = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE';
-const DEFAULT_SELL_AMOUNT = '10000';
-const GAS_TANK_POLYGONSCAN_URL = `https://polygonscan.com/address/${GAS_TANK_EOA}`;
-const LOW_BALANCE_THRESHOLD_WEI = 100n * 10n ** 18n;
+const LOW_BALANCE_THRESHOLD_WEI = parseEther(
+  String(DEFAULT_GAS_TANK_LOW_POL_BALANCE)
+);
 
 type BalanceStatus = 'loading' | 'ready' | 'error';
 
@@ -145,19 +144,6 @@ export function GasTank({ safeInfo, safeAppStatus }: SafeConnection) {
       </div>
     </section>
   );
-}
-
-function buildCowSwapRefillUrl() {
-  return (
-    `https://swap.cow.fi/#/${ETHEREUM_CHAIN_ID}/swap/${MANA_TOKEN_ADDRESS}/${NATIVE_POL_ADDRESS}` +
-    `?recipient=${GAS_TANK_EOA}&sellAmount=${DEFAULT_SELL_AMOUNT}&targetChainId=${POLYGON_CHAIN_ID}`
-  );
-}
-
-function buildSafeAppRefillUrl(safeAddress: string) {
-  const cowUrl = buildCowSwapRefillUrl();
-
-  return buildSafeAppOpenUrl(cowUrl, safeAddress);
 }
 
 function openRefillUrl(refillUrl: string, isSafeApp: boolean) {

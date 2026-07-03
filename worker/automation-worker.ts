@@ -4,14 +4,19 @@ import {
   type RunMonthlyAutomationOptions,
 } from '../server/automation';
 import { postDiscordTestMessage } from '../server/discord';
+import { runGasTankBalanceAlert } from '../server/gasTank';
 import {
   getSafeNextNonce,
   proposeSafePaymentTransaction,
 } from '../server/safeProposals';
 import { getAddress, isAddress } from 'viem';
 
+const MONTHLY_PAYMENTS_CRON = '0 15 1 * *';
+const GAS_TANK_ALERT_CRON = '0 14 * * *';
+
 type ManualRunRequest = {
   test?: boolean;
+  gasTank?: boolean;
   now?: string;
   force?: boolean;
   dryRun?: boolean;
@@ -37,11 +42,11 @@ export default {
   },
 
   async scheduled(
-    _controller: ScheduledController,
+    controller: ScheduledController,
     env: AutomationEnv,
     ctx: ExecutionContext
   ): Promise<void> {
-    ctx.waitUntil(runScheduled(env));
+    ctx.waitUntil(runScheduled(controller.cron, env));
   },
 };
 
@@ -71,6 +76,10 @@ async function handleManualRun(request: Request, env: AutomationEnv) {
     }
   }
 
+  if (body.gasTank === true) {
+    return Response.json(await runGasTankBalanceAlert(env));
+  }
+
   const options: RunMonthlyAutomationOptions = {
     force: body.force === true,
   };
@@ -97,7 +106,22 @@ async function handleManualRun(request: Request, env: AutomationEnv) {
   return Response.json(result);
 }
 
-async function runScheduled(env: AutomationEnv) {
+async function runScheduled(cron: string, env: AutomationEnv) {
+  if (cron === GAS_TANK_ALERT_CRON) {
+    const result = await runGasTankBalanceAlert(env);
+
+    if (result.status === 'failed') {
+      console.error('Gas tank alert failed', result);
+    }
+
+    return;
+  }
+
+  if (cron !== MONTHLY_PAYMENTS_CRON) {
+    console.warn('Unknown scheduled automation cron', { cron });
+    return;
+  }
+
   const result = await runMonthlyAutomation(env);
 
   if (

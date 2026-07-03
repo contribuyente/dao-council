@@ -44,6 +44,19 @@ export async function postDiscordTestMessage(
   });
 }
 
+export async function postDiscordGasTankAlertMessage(
+  env: DiscordEnv,
+  alert: {
+    level: 'low' | 'urgent';
+    balancePol: number;
+    lowThresholdPol: number;
+    urgentThresholdPol: number;
+    refillUrl: string;
+  }
+): Promise<DiscordPostResult> {
+  return postDiscordMessagePayload(env, buildDiscordGasTankAlertPayload(alert));
+}
+
 async function postDiscordMessagePayload(
   env: DiscordEnv,
   payload: DiscordMessagePayload
@@ -76,6 +89,38 @@ async function postDiscordMessagePayload(
 
   return {
     status: 'sent',
+  };
+}
+
+export function buildDiscordGasTankAlertPayload({
+  level,
+  balancePol,
+  lowThresholdPol,
+  urgentThresholdPol,
+  refillUrl,
+}: {
+  level: 'low' | 'urgent';
+  balancePol: number;
+  lowThresholdPol: number;
+  urgentThresholdPol: number;
+  refillUrl: string;
+}): DiscordMessagePayload {
+  const thresholdPol =
+    level === 'urgent' ? urgentThresholdPol : lowThresholdPol;
+  const headline =
+    level === 'urgent'
+      ? `URGENT: Polygon Gas Tank balance is below ${formatPolAmount(thresholdPol)}. Refill cannot wait until the next monthly sync.`
+      : `Polygon Gas Tank balance is below ${formatPolAmount(thresholdPol)}. Refill it on the next monthly sync.`;
+
+  return {
+    content: [
+      headline,
+      `Current balance: ${formatPolAmount(balancePol)}.`,
+      `Refill from the Council Safe: ${refillUrl}`,
+    ].join('\n'),
+    allowed_mentions: {
+      parse: [],
+    },
   };
 }
 
@@ -123,4 +168,10 @@ function formatPaymentResult(label: string, result: AutomationPaymentResult) {
   }
 
   return `${label}: failed - ${result.reason}`;
+}
+
+function formatPolAmount(amount: number) {
+  return `${Number(amount.toFixed(4)).toLocaleString(undefined, {
+    maximumFractionDigits: 4,
+  })} POL`;
 }
