@@ -62,7 +62,7 @@ export function useSafePaymentAction(
 
     try {
       const sdk = new SafeAppsSDK();
-      const currentSafeInfo = safeInfo ?? (await getSafeInfoWithTimeout());
+      const currentSafeInfo = await getSafeInfoWithTimeout();
 
       if (currentSafeInfo.chainId !== ETHEREUM_CHAIN_ID) {
         throw new Error('Switch Safe to Ethereum mainnet to create MANA payments.');
