@@ -117,7 +117,7 @@ Deploy the automation Worker after creating its KV namespace and secrets:
 npm run deploy:automation
 ```
 
-`npm run deploy` builds the app and deploys both Pages and the automation Worker. Do not enable live automation until `AUTOMATION_DRY_RUN=true` has been tested in production.
+`npm run deploy` builds the app and deploys both Pages and the automation Worker. Do not enable live automation until `AUTOMATION_DRY_RUN=true` has been tested in production. After the dry run is verified, set `AUTOMATION_DRY_RUN=false` and deploy the automation Worker again.
 
 ## How It Works
 
@@ -145,6 +145,8 @@ npm run deploy:automation
 9. A separate daily cron runs at `14:00 UTC`, checks the Polygon Gas Tank POL balance, and posts Discord refill alerts using two configurable thresholds:
    - Low alert: below `GAS_TANK_LOW_POL_BALANCE`, defaults to `1000` POL. This posts once and will not post again until the tank is refilled above the low threshold and later drops below it again.
    - Urgent alert: below `GAS_TANK_URGENT_POL_BALANCE`, defaults to `100` POL. This posts every daily check while the balance remains urgent.
+
+The monthly automation creates two separate Safe proposals, not one combined transaction. Curator proposals use `origin` metadata like `dao-council:auto:curators:YYYY-MM`, and Council proposals use `dao-council:auto:council:YYYY-MM`.
 
 ### Fee Calculation Logic
 
@@ -229,6 +231,12 @@ curl -X POST "http://localhost:8787/run" \
   --data '{"dryRun":true,"notifyDiscord":false}'
 ```
 
+Health check:
+
+```bash
+curl "http://localhost:8787/health"
+```
+
 Temporary live smoke test payload. This ignores dry-run, creates a 1 MANA Safe proposal to the Safe itself, and sends `Test` plus the Safe transaction link to Discord:
 
 ```bash
@@ -263,7 +271,7 @@ Cloudflare setup:
 
 1. Create a KV namespace named `dao-council-automation-runs`
 2. Replace the placeholder `kv_namespaces[0].id` in `wrangler.automation.jsonc`
-3. Add Worker secrets with `wrangler secret put <NAME> -c wrangler.automation.jsonc`:
+3. Add Worker secrets with `npm exec -- wrangler secret put <NAME> -c wrangler.automation.jsonc`:
    - `AUTOMATION_PROPOSER_PRIVATE_KEY`
    - `AUTOMATION_ADMIN_TOKEN`
    - `SAFE_API_KEY`
@@ -285,15 +293,19 @@ Safe setup:
 2. Derive its address
 3. Add that address as a Safe Transaction Service delegate/proposer for the Council Safe; do not add it as an on-chain Safe owner
 4. Generate a Safe API key
-5. Confirm proposals from that address appear in Safe with zero owner confirmations
+5. Keep the automation account without ETH, MANA, or owner permissions
+6. Confirm proposals from that address appear in Safe with zero owner confirmations
 
 Discord setup:
 
 1. Create a Discord application and bot
 2. Add the bot to the Council server
-3. Create `#multisig-ops`
+3. Create `#multisig`
 4. Give the bot only `View Channel` and `Send Messages` in that channel
-5. Copy the bot token and channel ID into Cloudflare Worker secrets/vars
+5. Do not give the bot Administrator, Manage Messages, Mention Everyone, or Manage Webhooks permissions
+6. Copy the bot token and channel ID into Cloudflare Worker secrets/vars
+
+Discord messages are sent with `allowed_mentions: { "parse": [] }` so automation output cannot broadly mention roles or users.
 
 ### Curator Data
 
